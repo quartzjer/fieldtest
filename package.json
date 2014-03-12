@@ -1,0 +1,10 @@
+{
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/quartzjer/fieldtest.git"
+  },
+  "dependencies":{
+    "telehash":"0.2.x",
+    "optimist":"*"
+  }
+}
