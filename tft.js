@@ -50,7 +50,6 @@ function init(err, self)
   }
   me = self;
 
-  console.log("START",me.hashname);
   rl.setPrompt(me.hashname.substr(0,6)+"> ");
   rl.prompt();
 }
@@ -88,7 +87,9 @@ cmds.all = cmds.a = function()
 {
   Object.keys(me.lines).forEach(function(line){
     var hn = me.lines[line];
-    log(hn.address,Object.keys(hn.chans).length);
+    log(hn.hashname);
+    log("\tpaths",hn.paths.filter(function(p){return p.lastIn}).map(function(p){return p.type}).join(","));
+    log("\tchannels",Object.keys(hn.chans).map(function(cid){return hn.chans[cid].type}).join(","));
   });
 }
 
