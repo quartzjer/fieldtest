@@ -3,8 +3,12 @@
     "type": "git",
     "url": "https://github.com/quartzjer/fieldtest.git"
   },
+  "scripts":{
+    "browserify":"browserify browser.js -o bundle.js"
+  },
   "dependencies":{
     "telehash":"0.2.x",
-    "optimist":"*"
+    "optimist":"*",
+    "jquery-browserify":"*"
   }
 }
