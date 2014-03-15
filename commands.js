@@ -45,8 +45,8 @@ cmds.all = cmds.a = function()
   Object.keys(me.lines).forEach(function(line){
     var hn = me.lines[line];
     log(hn.hashname);
-    log("\tpaths",hn.paths.filter(function(p){return p.lastIn}).map(function(p){return p.type}).join(","));
-    log("\tchannels",Object.keys(hn.chans).map(function(cid){return hn.chans[cid].type}).join(","));
+    log("    paths",hn.paths.filter(function(p){return p.lastIn}).map(function(p){return p.type}).join(","));
+    log("    channels",Object.keys(hn.chans).map(function(cid){return hn.chans[cid].type}).join(","));
   });
 }
 
@@ -66,18 +66,17 @@ cmds.ping = function(arg)
   var start = Date.now();
   hn.seek(me.hashname,function(err){
     if(err) return log("ping failed",hn.hashname,err);
-    log("ping",hn.address,Date.now()-start);
+    log("pong",hn.hashname,Date.now()-start);
   });
 }
 cmds.h = function(arg){
   var host = me.whois(arg[0]);
   if(!host) return log("invalid hashname",arg[0]);
-  if(host.relay) log("relay",JSON.stringify(host.relay));
-  Object.keys(host.paths).forEach(function(id){
-    log("path",JSON.stringify(host.paths[id]));                        
+  host.paths.forEach(function(path){
+    log("path",Math.floor((Date.now()-path.lastIn)/1000),Math.floor((Date.now()-path.lastOut)/1000),JSON.stringify(path.json));                        
   });
   Object.keys(host.chans).forEach(function(c){
-    log("chan",host.chans[c].type,host.chans[c].id);
+    log("chan",host.chans[c].type,Math.floor((Date.now()-host.chans[c].sentAt)/1000),Math.floor((Date.now()-host.chans[c].recvAt)/1000));
   });
 }
 cmds.bulk = function(arg)

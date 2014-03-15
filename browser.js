@@ -3,6 +3,7 @@ var commands = require("./commands.js");
 var $ = require("jquery-browserify");
 require("./jquery.tmpl.min.js");
 tele.debug(function(){console.log.apply(console,arguments)});
+tele.info(function(){log.apply(this,arguments)});
 
 var args = {};
 args.id = "fieldtester";
@@ -25,6 +26,7 @@ function init(err, self)
     $("#error").show();
     return;
   }
+  log("online!");
   commands.init(self, log);
 
   $("#message-input").focus();
