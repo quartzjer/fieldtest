@@ -4,7 +4,7 @@
     "url": "https://github.com/quartzjer/fieldtest.git"
   },
   "scripts":{
-    "browserify":"browserify browser.js -o bundle.js"
+    "browserify":"browserify browser.js -o fieldtest.js"
   },
   "dependencies":{
     "telehash":"0.2.x",

@@ -2016,7 +2016,7 @@ cmds.h = function(arg){
     log("path",Math.floor((Date.now()-path.lastIn)/1000),Math.floor((Date.now()-path.lastOut)/1000),JSON.stringify(path.json));                        
   });
   Object.keys(host.chans).forEach(function(c){
-    log("chan",host.chans[c].type,Math.floor((Date.now()-host.chans[c].lastIn)/1000),Math.floor((Date.now()-host.chans[c].lastIn)/1000));
+    log("chan",host.chans[c].type,Math.floor((Date.now()-host.chans[c].sentAt)/1000),Math.floor((Date.now()-host.chans[c].recvAt)/1000));
   });
 }
 cmds.bulk = function(arg)
