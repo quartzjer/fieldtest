@@ -39,6 +39,7 @@ log("starting...");
 
 // load or generate our crypto id
 argv.id = path.join(process.cwd(),argv.id);
+if(argv.seeds) argv.seeds = path.join(process.cwd(),argv.seeds);
 tele.init(argv, init);
 
 function init(err, self)
