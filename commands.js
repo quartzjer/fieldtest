@@ -92,3 +92,23 @@ cmds.bulk = function(arg)
     })
   });
 }
+cmds.ticket = function(arg)
+{
+  var hn = me.whois(arg[0]);
+  if(!hn) return log("invalid hashname",arg[0]);
+  var tik = hn.ticket({js:{"tft":arg[1]}});
+  if(!tik) return log("ticket failed");
+  log(tik.toString("base64"));
+}
+
+cmds.ticketed = function(arg)
+{
+  var hn = me.whois(arg[0]);
+  if(!hn) return log("invalid hashname",arg[0]);
+  var buf = new Buffer(arg[1],"base64");
+  if(!buf) return log("ticket parse failed");
+  var packet = hn.ticketed(buf);
+  if(!packet) return log("ticket failed");
+  log(JSON.stringify(packet.js));
+}
+
