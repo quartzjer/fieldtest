@@ -42,13 +42,15 @@ argv.id = path.join(process.cwd(),argv.id);
 if(argv.seeds) argv.seeds = path.join(process.cwd(),argv.seeds);
 tele.init(argv, init);
 
+var me;
 function init(err, self)
 {
-  if(!self)
+  if(err || !self)
   {
     log("startup failed",err);
     process.exit(1);
   }
+  me = self;
   commands.init(self, log);
 
   rl.setPrompt(self.hashname.substr(0,6)+"> ");
@@ -60,6 +62,7 @@ function init(err, self)
 rl.on('line', function(line) {
   var parts = line.split(" ");
   var cmd = parts.shift();
+  if(!me) return log("not online");
   if(commands.command[cmd]) commands.command[cmd](parts);
   else log("I don't know how to "+cmd);
   rl.prompt();

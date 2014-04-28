@@ -73,10 +73,14 @@ cmds.h = function(arg){
   var host = me.whois(arg[0]);
   if(!host) return log("invalid hashname",arg[0]);
   host.paths.forEach(function(path){
-    log("path",Math.floor((Date.now()-path.lastIn)/1000),Math.floor((Date.now()-path.lastOut)/1000),JSON.stringify(path.json));                        
+    log("path",(hn.to==path)?"(primary)":"",Math.floor((Date.now()-path.lastIn)/1000),Math.floor((Date.now()-path.lastOut)/1000),JSON.stringify(path.json));
   });
   Object.keys(host.chans).forEach(function(c){
-    log("chan",host.chans[c].type,Math.floor((Date.now()-host.chans[c].sentAt)/1000),Math.floor((Date.now()-host.chans[c].recvAt)/1000));
+   if(!host.chans[c]) return; // dead
+   log("chan",c,host.chans[c].isOut?"out":"in",
+     host.chans[c].type,
+     Math.floor((Date.now()-host.chans[c].sentAt)/1000),
+     Math.floor((Date.now()-host.chans[c].recvAt)/1000));
   });
 }
 cmds.bulk = function(arg)
