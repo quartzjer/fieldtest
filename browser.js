@@ -6,7 +6,7 @@ tele.debug(function(){console.log.apply(console,arguments)});
 tele.info(function(){log.apply(this,arguments)});
 
 var args = {};
-//args.seeds = require("./seeds.json");
+args.seeds = require("./seeds.json");
 args.id = "fieldtester";
 $(document).ready(function() {
   log("connecting");

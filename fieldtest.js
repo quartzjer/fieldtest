@@ -6635,7 +6635,7 @@ tele.debug(function(){console.log.apply(console,arguments)});
 tele.info(function(){log.apply(this,arguments)});
 
 var args = {};
-//args.seeds = require("./seeds.json");
+args.seeds = require("./seeds.json");
 args.id = "fieldtester";
 $(document).ready(function() {
   log("connecting");
@@ -6671,7 +6671,8 @@ function init(err, self)
   });
 }
 
-},{"./commands.js":33,"./jquery.tmpl.min.js":34,"jquery-browserify":35,"telehash":36}],33:[function(require,module,exports){
+},{"./commands.js":33,"./jquery.tmpl.min.js":34,"./seeds.json":63,"jquery-browserify":35,"telehash":36}],33:[function(require,module,exports){
+(function (Buffer){
 var me;
 var log;
 exports.init = function(self,l)
@@ -6719,7 +6720,7 @@ cmds.all = cmds.a = function()
   Object.keys(me.lines).forEach(function(line){
     var hn = me.lines[line];
     log(hn.hashname);
-    log("    paths",hn.paths.filter(function(p){return p.lastIn}).map(function(p){return p.type}).join(","));
+    log("    paths",hn.paths.filter(function(p){return p.recvAt}).map(function(p){return p.type}).join(","));
     log("    channels",Object.keys(hn.chans).map(function(cid){return hn.chans[cid].type}).join(","));
   });
 }
@@ -6746,11 +6747,16 @@ cmds.ping = function(arg)
 cmds.h = function(arg){
   var host = me.whois(arg[0]);
   if(!host) return log("invalid hashname",arg[0]);
+  if(host.relayChan) log("relaying: true");
   host.paths.forEach(function(path){
-    log("path",Math.floor((Date.now()-path.lastIn)/1000),Math.floor((Date.now()-path.lastOut)/1000),JSON.stringify(path.json));                        
+    log("path",(hn.to==path)?"(primary)":"",Math.floor((Date.now()-path.recvAt)/1000),Math.floor((Date.now()-path.sentAt)/1000),JSON.stringify(path.json));
   });
   Object.keys(host.chans).forEach(function(c){
-    log("chan",host.chans[c].type,Math.floor((Date.now()-host.chans[c].sentAt)/1000),Math.floor((Date.now()-host.chans[c].recvAt)/1000));
+   if(!host.chans[c]) return; // dead
+   log("chan",c,host.chans[c].isOut?"out":"in",
+     host.chans[c].type,
+     Math.floor((Date.now()-host.chans[c].sentAt)/1000),
+     Math.floor((Date.now()-host.chans[c].recvAt)/1000));
   });
 }
 cmds.bulk = function(arg)
@@ -6766,8 +6772,29 @@ cmds.bulk = function(arg)
     })
   });
 }
+cmds.ticket = function(arg)
+{
+  var hn = me.whois(arg[0]);
+  if(!hn) return log("invalid hashname",arg[0]);
+  var tik = hn.ticket({js:{"tft":arg[1]}});
+  if(!tik) return log("ticket failed");
+  log(tik.toString("base64"));
+}
 
-},{}],34:[function(require,module,exports){
+cmds.ticketed = function(arg)
+{
+  var hn = me.whois(arg[0]);
+  if(!hn) return log("invalid hashname",arg[0]);
+  var buf = new Buffer(arg[1],"base64");
+  if(!buf) return log("ticket parse failed");
+  var packet = hn.ticketed(buf);
+  if(!packet) return log("ticket failed");
+  log(JSON.stringify(packet.js));
+}
+
+
+}).call(this,require("buffer").Buffer)
+},{"buffer":1}],34:[function(require,module,exports){
 (function(a){var r=a.fn.domManip,d="_tmplitem",q=/^[^<]*(<[\w\W]+>)[^>]*$|\{\{\! /,b={},f={},e,p={key:0,data:{}},h=0,c=0,l=[];function g(e,d,g,i){var c={data:i||(d?d.data:{}),_wrap:d?d._wrap:null,tmpl:null,parent:d||null,nodes:[],calls:u,nest:w,wrap:x,html:v,update:t};e&&a.extend(c,e,{nodes:[],parent:d});if(g){c.tmpl=g;c._ctnt=c._ctnt||c.tmpl(a,c);c.key=++h;(l.length?f:b)[h]=c}return c}a.each({appendTo:"append",prependTo:"prepend",insertBefore:"before",insertAfter:"after",replaceAll:"replaceWith"},function(f,d){a.fn[f]=function(n){var g=[],i=a(n),k,h,m,l,j=this.length===1&&this[0].parentNode;e=b||{};if(j&&j.nodeType===11&&j.childNodes.length===1&&i.length===1){i[d](this[0]);g=this}else{for(h=0,m=i.length;h<m;h++){c=h;k=(h>0?this.clone(true):this).get();a.fn[d].apply(a(i[h]),k);g=g.concat(k)}c=0;g=this.pushStack(g,f,i.selector)}l=e;e=null;a.tmpl.complete(l);return g}});a.fn.extend({tmpl:function(d,c,b){return a.tmpl(this[0],d,c,b)},tmplItem:function(){return a.tmplItem(this[0])},template:function(b){return a.template(b,this[0])},domManip:function(d,l,j){if(d[0]&&d[0].nodeType){var f=a.makeArray(arguments),g=d.length,i=0,h;while(i<g&&!(h=a.data(d[i++],"tmplItem")));if(g>1)f[0]=[a.makeArray(d)];if(h&&c)f[2]=function(b){a.tmpl.afterManip(this,b,j)};r.apply(this,f)}else r.apply(this,arguments);c=0;!e&&a.tmpl.complete(b);return this}});a.extend({tmpl:function(d,h,e,c){var j,k=!c;if(k){c=p;d=a.template[d]||a.template(null,d);f={}}else if(!d){d=c.tmpl;b[c.key]=c;c.nodes=[];c.wrapped&&n(c,c.wrapped);return a(i(c,null,c.tmpl(a,c)))}if(!d)return[];if(typeof h==="function")h=h.call(c||{});e&&e.wrapped&&n(e,e.wrapped);j=a.isArray(h)?a.map(h,function(a){return a?g(e,c,d,a):null}):[g(e,c,d,h)];return k?a(i(c,null,j)):j},tmplItem:function(b){var c;if(b instanceof a)b=b[0];while(b&&b.nodeType===1&&!(c=a.data(b,"tmplItem"))&&(b=b.parentNode));return c||p},template:function(c,b){if(b){if(typeof b==="string")b=o(b);else if(b instanceof a)b=b[0]||{};if(b.nodeType)b=a.data(b,"tmpl")||a.data(b,"tmpl",o(b.innerHTML));return typeof c==="string"?(a.template[c]=b):b}return c?typeof c!=="string"?a.template(null,c):a.template[c]||a.template(null,q.test(c)?c:a(c)):null},encode:function(a){return(""+a).split("<").join("&lt;").split(">").join("&gt;").split('"').join("&#34;").split("'").join("&#39;")}});a.extend(a.tmpl,{tag:{tmpl:{_default:{$2:"null"},open:"if($notnull_1){_=_.concat($item.nest($1,$2));}"},wrap:{_default:{$2:"null"},open:"$item.calls(_,$1,$2);_=[];",close:"call=$item.calls();_=call._.concat($item.wrap(call,_));"},each:{_default:{$2:"$index, $value"},open:"if($notnull_1){$.each($1a,function($2){with(this){",close:"}});}"},"if":{open:"if(($notnull_1) && $1a){",close:"}"},"else":{_default:{$1:"true"},open:"}else if(($notnull_1) && $1a){"},html:{open:"if($notnull_1){_.push($1a);}"},"=":{_default:{$1:"$data"},open:"if($notnull_1){_.push($.encode($1a));}"},"!":{open:""}},complete:function(){b={}},afterManip:function(f,b,d){var e=b.nodeType===11?a.makeArray(b.childNodes):b.nodeType===1?[b]:[];d.call(f,b);m(e);c++}});function i(e,g,f){var b,c=f?a.map(f,function(a){return typeof a==="string"?e.key?a.replace(/(<\w+)(?=[\s>])(?![^>]*_tmplitem)([^>]*)/g,"$1 "+d+'="'+e.key+'" $2'):a:i(a,e,a._ctnt)}):e;if(g)return c;c=c.join("");c.replace(/^\s*([^<\s][^<]*)?(<[\w\W]+>)([^>]*[^>\s])?\s*$/,function(f,c,e,d){b=a(e).get();m(b);if(c)b=j(c).concat(b);if(d)b=b.concat(j(d))});return b?b:j(c)}function j(c){var b=document.createElement("div");b.innerHTML=c;return a.makeArray(b.childNodes)}function o(b){return new Function("jQuery","$item","var $=jQuery,call,_=[],$data=$item.data;with($data){_.push('"+a.trim(b).replace(/([\\'])/g,"\\$1").replace(/[\r\t\n]/g," ").replace(/\$\{([^\}]*)\}/g,"{{= $1}}").replace(/\{\{(\/?)(\w+|.)(?:\(((?:[^\}]|\}(?!\}))*?)?\))?(?:\s+(.*?)?)?(\(((?:[^\}]|\}(?!\}))*?)\))?\s*\}\}/g,function(m,l,j,d,b,c,e){var i=a.tmpl.tag[j],h,f,g;if(!i)throw"Template command not found: "+j;h=i._default||[];if(c&&!/\w$/.test(b)){b+=c;c=""}if(b){b=k(b);e=e?","+k(e)+")":c?")":"";f=c?b.indexOf(".")>-1?b+c:"("+b+").call($item"+e:b;g=c?f:"(typeof("+b+")==='function'?("+b+").call($item):("+b+"))"}else g=f=h.$1||"null";d=k(d);return"');"+i[l?"close":"open"].split("$notnull_1").join(b?"typeof("+b+")!=='undefined' && ("+b+")!=null":"true").split("$1a").join(g).split("$1").join(f).split("$2").join(d?d.replace(/\s*([^\(]+)\s*(\((.*?)\))?/g,function(d,c,b,a){a=a?","+a+")":b?")":"";return a?"("+c+").call($item"+a:d}):h.$2||"")+"_.push('"})+"');}return _;")}function n(c,b){c._wrap=i(c,true,a.isArray(b)?b:[q.test(b)?b:a(b).html()]).join("")}function k(a){return a?a.replace(/\\'/g,"'").replace(/\\\\/g,"\\"):null}function s(b){var a=document.createElement("div");a.appendChild(b.cloneNode(true));return a.innerHTML}function m(o){var n="_"+c,k,j,l={},e,p,i;for(e=0,p=o.length;e<p;e++){if((k=o[e]).nodeType!==1)continue;j=k.getElementsByTagName("*");for(i=j.length-1;i>=0;i--)m(j[i]);m(k)}function m(j){var p,i=j,k,e,m;if(m=j.getAttribute(d)){while(i.parentNode&&(i=i.parentNode).nodeType===1&&!(p=i.getAttribute(d)));if(p!==m){i=i.parentNode?i.nodeType===11?0:i.getAttribute(d)||0:0;if(!(e=b[m])){e=f[m];e=g(e,b[i]||f[i],null,true);e.key=++h;b[h]=e}c&&o(m)}j.removeAttribute(d)}else if(c&&(e=a.data(j,"tmplItem"))){o(e.key);b[e.key]=e;i=a.data(j.parentNode,"tmplItem");i=i?i.key:0}if(e){k=e;while(k&&k.key!=i){k.nodes.push(j);k=k.parent}delete e._ctnt;delete e._wrap;a.data(j,"tmplItem",e)}function o(a){a=a+n;e=l[a]=l[a]||g(e,b[e.parent.key+n]||e.parent,null,true)}}}function u(a,d,c,b){if(!a)return l.pop();l.push({_:a,tmpl:d,item:this,data:c,options:b})}function w(d,c,b){return a.tmpl(a.template(d),c,b,this)}function x(b,d){var c=b.options||{};c.wrapped=d;return a.tmpl(a.template(b.tmpl),b.data,c,b.item)}function v(d,c){var b=this._wrap;return a.map(a(a.isArray(b)?b.join(""):b).filter(d||"*"),function(a){return c?a.innerText||a.textContent:a.outerHTML||s(a)})}function t(){var b=this.nodes;a.tmpl(null,null,null,this).insertBefore(b[0]);a(b).remove()}})(jQuery)
 },{}],35:[function(require,module,exports){
 // Uses Node, AMD or browser globals to create a module.
@@ -16191,12 +16218,20 @@ exports.crypt = function(ecc,aes)
   crypto.aes = aes;
 }
 
+// simple xor buffer folder
+function fold(count, buf)
+{
+  if(!count || buf.length % 2) return buf;
+  var ret = buf.slice(0,buf.length/2);
+  for(i = 0; i < ret.length; i++) ret[i] = ret[i] ^ buf[i+ret.length];
+  return fold(count-1,ret);
+}
+
 exports.genkey = function(ret,cbDone,cbStep)
 {
   var k = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1);
   ret["1a"] = k.PublicKey.slice(1).toString("base64");
   ret["1a_secret"] = k.PrivateKey.toString("base64");
-  ret.parts["1a"] = crypto.createHash("sha1").update(k.PublicKey.slice(1)).digest("hex");
   cbDone();
 }
 
@@ -16225,17 +16260,17 @@ exports.openize = function(id, to, inner)
 
   // get the shared secret to create the iv+key for the open aes
   var secret = to.ecc.deriveSharedSecret(to.public);
-  var key = secret.slice(0,16);
+  var key = fold(1,crypto.createHash("sha256").update(secret).digest());
   var iv = new Buffer("00000000000000000000000000000001","hex");
 
   // encrypt the inner
-  var body = self.pencode(inner,id.cs["1a"].key);
+  var body = (!Buffer.isBuffer(inner)) ? self.pencode(inner,id.cs["1a"].key) : inner;
   var cbody = crypto.aes(true, key, iv, body);
 
   // prepend the line public key and hmac it  
   var secret = id.cs["1a"].private.deriveSharedSecret(to.public);
   var macd = Buffer.concat([eccpub,cbody]);
-  var hmac = crypto.createHmac('sha1', secret).update(macd).digest();
+  var hmac = fold(3,crypto.createHmac("sha256", secret).update(macd).digest());
 
   // create final body
   var body = Buffer.concat([hmac,macd]);
@@ -16247,9 +16282,9 @@ exports.deopenize = function(id, open)
   var ret = {verify:false};
   if(!open.body) return ret;
 
-  var mac1 = open.body.slice(0,20).toString("hex");
-  var pub = open.body.slice(20,60);
-  var cbody = open.body.slice(60);
+  var mac1 = open.body.slice(0,4).toString("hex");
+  var pub = open.body.slice(4,44);
+  var cbody = open.body.slice(44);
 
   try{
     ret.linepub = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, Buffer.concat([new Buffer("04","hex"),pub]), true);      
@@ -16259,24 +16294,29 @@ exports.deopenize = function(id, open)
   if(!ret.linepub) return ret;
 
   var secret = id.cs["1a"].private.deriveSharedSecret(ret.linepub);
-  var key = secret.slice(0,16);
+  var key = fold(1,crypto.createHash("sha256").update(secret).digest());
   var iv = new Buffer("00000000000000000000000000000001","hex");
 
   // aes-128 decipher the inner
   var body = crypto.aes(false, key, iv, cbody);
   var inner = self.pdecode(body);
   if(!inner) return ret;
+  ret.inner = inner;
 
   // verify+load inner key info
-  var epub = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, Buffer.concat([new Buffer("04","hex"),inner.body]), true);
-  if(!epub) return ret;
-  ret.key = inner.body;
-  if(typeof inner.js.from != "object" || !inner.js.from["1a"]) return ret;
-  if(crypto.createHash("sha1").update(inner.body).digest("hex") != inner.js.from["1a"]) return ret;
+  var epub;
+  if(!open.from)
+  {
+    epub = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, Buffer.concat([new Buffer("04","hex"),inner.body]), true);
+    if(!epub) return ret;
+    ret.key = inner.body;
+  }else{
+    epub = open.from.public;
+  }
 
   // verify the hmac
   var secret = id.cs["1a"].private.deriveSharedSecret(epub);
-  var mac2 = crypto.createHmac('sha1', secret).update(open.body.slice(20)).digest("hex");
+  var mac2 = fold(3,crypto.createHmac("sha256", secret).update(open.body.slice(4)).digest()).toString("hex");
   if(mac2 != mac1) return ret;
 
   // all good, cache+return
@@ -16288,36 +16328,36 @@ exports.deopenize = function(id, open)
 // set up the line enc/dec keys
 exports.openline = function(from, open)
 {
-  from.lineIV = 0;
+  from.lineIV = crypto.randomBytes(4).readUInt32LE(0); // start from random place
   from.lineInB = new Buffer(from.lineIn, "hex");
   var ecdhe = from.ecc.deriveSharedSecret(open.linepub);
-  from.encKey = crypto.createHash("sha1")
+  from.encKey = fold(1,crypto.createHash("sha256")
     .update(ecdhe)
     .update(new Buffer(from.lineOut, "hex"))
     .update(from.lineInB)
-    .digest().slice(0,16);
-  from.decKey = crypto.createHash("sha1")
+    .digest());
+  from.decKey = fold(1,crypto.createHash("sha256")
     .update(ecdhe)
     .update(from.lineInB)
     .update(new Buffer(from.lineOut, "hex"))
-    .digest().slice(0,16);
+    .digest());
   return true;
 },
 
 exports.lineize = function(to, packet)
 {
 	// now encrypt the packet
-  var iv = new Buffer(4);
-  iv.writeUInt32LE(to.lineIV++,0);
-  var ivz = new Buffer(12);
-  ivz.fill(0);
-  var cbody = crypto.aes(true, to.encKey, Buffer.concat([ivz,iv]), self.pencode(packet.js,packet.body));
+  var iv = new Buffer(16);
+  iv.fill(0);
+  iv.writeUInt32LE(to.lineIV++,12);
+
+  var cbody = crypto.aes(true, to.encKey, iv, self.pencode(packet.js,packet.body));
 
   // prepend the IV and hmac it
-  var mac = crypto.createHmac('sha1', to.encKey).update(Buffer.concat([iv,cbody])).digest()
+  var mac = fold(3,crypto.createHmac("sha256", to.encKey).update(Buffer.concat([iv.slice(12),cbody])).digest());
 
   // create final body
-  var body = Buffer.concat([to.lineInB,mac.slice(0,4),iv,cbody]);
+  var body = Buffer.concat([to.lineInB,mac,iv.slice(12),cbody]);
 
   return self.pencode(null, body);
 },
@@ -16330,7 +16370,7 @@ exports.delineize = function(from, packet)
   
   // validate the hmac
   var mac1 = packet.body.slice(0,4).toString("hex");
-  var mac2 = crypto.createHmac('sha1', from.decKey).update(packet.body.slice(4)).digest().slice(0,4).toString("hex");
+  var mac2 = fold(3,crypto.createHmac("sha256", from.decKey).update(packet.body.slice(4)).digest()).toString("hex");
   if(mac1 != mac2) return "invalid hmac";
 
   // decrypt body
@@ -18208,9 +18248,6 @@ exports.genkey = function(ret,cbDone,cbStep)
       var key = forge.asn1.toDer(forge.pki.publicKeyToAsn1(state.keys.publicKey)).bytes();
       ret["2a"] = forge.util.encode64(key);
       ret["2a_secret"] = forge.util.encode64(forge.asn1.toDer(forge.pki.privateKeyToAsn1(state.keys.privateKey)).bytes());
-      var md = forge.md.sha256.create();
-      md.update(key);
-      ret.parts["2a"] = md.digest().toHex();
       cbDone();
 	  }
 	}
@@ -18254,7 +18291,7 @@ exports.openize = function(id, to, inner)
   var eccpub = to.ecc.PublicKey.slice(1);
 
 	// encrypt the body
-	var ibody = self.pencode(inner, id.cs["2a"].key);
+  var ibody = (!Buffer.isBuffer(inner)) ? self.pencode(inner,id.cs["2a"].key) : inner;
   var keyhex = crypto.createHash("sha256").update(eccpub).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var iv = sjcl.codec.hex.toBits("00000000000000000000000000000001");
@@ -18263,6 +18300,7 @@ exports.openize = function(id, to, inner)
 
 	// sign & encrypt the sig
   var sig = id.cs["2a"].sign(cbody);
+  if(!to.lineOut) to.lineOut = ""; // no lines for tickets
   var keyhex = crypto.createHash("sha256").update(Buffer.concat([eccpub,new Buffer(to.lineOut,"hex")])).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var cipher = sjcl.mode.gcm.encrypt(key, sjcl.codec.hex.toBits(sig.toString("hex")), iv, [], 32);
@@ -18302,14 +18340,23 @@ exports.deopenize = function(id, open)
   var deciphered = self.pdecode(ibody);
   if(!deciphered || !deciphered.body) return ret;
   ret.js = deciphered.js;
-  ret.key = deciphered.body;
-
-  // extract attached public key
-	var from = {};
-  if(exports.loadkey(from,deciphered.body)) return ret;
+  ret.inner = deciphered;
+  
+  var from = {};
+  var lineIn;
+  if(!open.from)
+  {
+    // extract attached public key
+    ret.key = deciphered.body;
+    if(exports.loadkey(from,deciphered.body)) return ret;
+    lineIn = deciphered.js.line;
+  }else{
+    from = open.from;
+    lineIn = "";
+  }
 
   // decrypt signature
-  var keyhex = crypto.createHash("sha256").update(Buffer.concat([eccpub,new Buffer(deciphered.js.line,"hex")])).digest("hex");
+  var keyhex = crypto.createHash("sha256").update(Buffer.concat([eccpub,new Buffer(lineIn,"hex")])).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var cipher = sjcl.mode.gcm.decrypt(key, sjcl.codec.hex.toBits(csig.toString("hex")), iv, [], 32);
   var sig = new Buffer(sjcl.codec.hex.fromBits(cipher), "hex");
@@ -18445,11 +18492,13 @@ exports.install = function(self)
   var sockets = {};
   self.deliver("http", function(path, msg, to) {
     if(!sockets[path.http]){
+      console.log("new http path",path.http);
       sockets[path.http] = io.connect(path.http);
       sockets[path.http].on("packet", function(packet){
         self.receive((new Buffer(packet.data, "base64")).toString("binary"), path);
       });
     }
+    console.log("sending via http path",path.http,sockets[path.http].socket.sessionid);
     sockets[path.http].emit("packet", {data: msg.toString("base64")});
   });  
 }
@@ -22349,11 +22398,14 @@ defaults.chan_autoack = 1000; // is how often we auto ack if the app isn't gener
 defaults.chan_resend = 2000; // resend the last packet after this long if it wasn't acked in a durable channel
 defaults.chan_outbuf = 100; // max size of outgoing buffer before applying backpressure
 defaults.chan_inbuf = 50; // how many incoming packets to cache during processing/misses
-defaults.nat_timeout = 60*1000; // nat timeout for inactivity
-defaults.idle_timeout = 5*defaults.nat_timeout; // overall inactivity timeout
+defaults.nat_timeout = 30*1000; // nat timeout for inactivity
+defaults.idle_timeout = 2*defaults.nat_timeout; // overall inactivity timeout
 defaults.link_timer = defaults.nat_timeout - (5*1000); // how often the DHT link maintenance runs
 defaults.link_max = 256; // maximum number of links to maintain overall (minimum one packet per link timer)
 defaults.link_k = 8; // maximum number of links to maintain per bucket
+
+// network preference order for paths
+var pathShareOrder = ["bluetooth","webrtc","ipv6","ipv4","http"];
 
 exports.switch = function()
 {
@@ -22361,8 +22413,7 @@ exports.switch = function()
 
   self.load = function(id)
   {
-    if(!id || !id.parts) return "bad keys";
-    self.parts = id.parts;
+    if(typeof id != "object") return "bad keys";
     self.id = id;
     var err = loadkeys(self);
     if(err) return err;
@@ -22380,24 +22431,13 @@ exports.switch = function()
   self.receive = receive;
   // outgoing packets to the network
   self.deliver = function(type, callback){ self.networks[type] = callback};
-  self.networks["relay"] = function(path,msg){
-    if(path.relay.ended) return debug("dropping dead relay");
-    path.relay.send({body:msg});
-  };
   self.send = function(path, msg, to){
-    if(!msg) return debug("send called w/ no packet, dropping");
+    if(!msg) return debug("send called w/ no packet, dropping",new Error().stack)&&false;
+    if(!path) return debug("send called w/ no path, dropping",new Error().stack)&&false;
+    if(!self.networks[path.type]) return false;
     if(to) path = to.pathOut(path);
-    if(!path) return debug("send called w/ no valid network, dropping");
-    debug("<<<<",Date(),msg.length,[path.type,path.ip,path.port,path.id].join(","),to&&to.hashname);
-
-    // try to send it via a supported network
-    if(self.networks[path.type]) self.networks[path.type](path,msg,to);
-
-    // if the path has been active in or out recently, we're done
-    if(Date.now() - path.lastIn < defaults.nat_timeout || Date.now() - path.lastOut < (defaults.chan_timeout / 2)) return;
-
-    // no network support or unresponsive path, try a bridge
-    self.bridge(path,msg,to);
+    debug("<<<<",Date(),msg.length,path&&[path.type,path.ip,path.port,path.id].join(","),to&&to.hashname);
+    return self.networks[path.type](path,msg,to);
   };
   self.pathSet = function(path, del)
   {
@@ -22408,11 +22448,12 @@ exports.switch = function()
       if(del) self.paths.splice(self.paths.indexOf(existing),1);
       return;
     }
+    debug("local path add",JSON.stringify(path));
+    info("self",path.type,JSON.stringify(path));
     self.paths.push(path);
     // trigger pings if we're online
     if(self.isOnline)
     {
-      debug("local network updated, checking links")
       linkMaint(self);
     }
   }
@@ -22450,12 +22491,10 @@ exports.switch = function()
   self.raws["connect"] = inConnect;
   self.raws["seek"] = inSeek;
   self.raws["path"] = inPath;
-  self.raws["bridge"] = inBridge;
   self.raws["link"] = inLink;
 
   // primarily internal, to seek/connect to a hashname
   self.seek = seek;
-  self.bridge = bridge;
 
   // for modules
   self.pencode = pencode;
@@ -22473,6 +22512,12 @@ exports.switch = function()
     if(bool) return self.waits.push(true);
     self.waits.pop();
     if(self.waiting && self.waits.length == 0) self.waiting();
+  }
+  self.ping = function(){
+    if(!self.tracer) self.tracer = randomHEX(16);
+    var js = {type:"ping",trace:self.tracer};
+    Object.keys(self.parts).forEach(function(csid){js[csid] = true;});
+    return js;
   }
 
   linkLoop(self);
@@ -22579,56 +22624,10 @@ function linkMaint(self)
     var sorted = self.buckets[bucket].sort(function(a,b){ return a.age - b.age });
     if(sorted.length) debug("link maintenance on bucket",bucket,sorted.length);
     sorted.slice(0,defaults.link_k).forEach(function(hn){
-      if(!hn.linked || !hn.alive) return;
+      if(!hn.linked || !pathValid(hn.to)) return;
       if((Date.now() - hn.linked.sentAt) < Math.ceil(defaults.link_timer/2)) return; // we sent to them recently
       hn.linked.send({js:{seed:self.seed}});
     });
-  });
-}
-
-// try finding a bridge
-function bridge(path, msg, to)
-{
-  var self = this;
-  var packet = pdecode(msg);
-  if(packet.head.length) return; // only bridge line packets
-  if(!to) return; // require to for line info
-
-  // check for existing bridge
-  var existing = pathMatch(path,to.bridges);
-  if(existing)
-  {
-    if(existing.bridged) return self.send(existing.bridged,msg); // leave off to to prevent loops
-    existing.bridgeq = msg; // queue most recent packet;
-    return;
-  }
-
-  if(!self.bridges[path.type]) return;
-  debug("bridging",JSON.stringify(path.json),to.hashname);
-
-  // TODO, better selection of a bridge?
-  var via;
-  Object.keys(self.bridges[path.type]).forEach(function(id){
-    if(id == to.hashname) return; // lolz
-    var hn = self.whois(id);
-    if(hn.alive) via = hn;
-  });
-
-  if(!via) return debug("couldn't find a bridge host");
-
-  // stash this so that any more bridge's don't spam
-  if(!to.bridges) to.bridges = [];
-  path.bridgeq = msg;
-  to.bridges.push(path);
-
-  // create the bridge
-  via.raw("bridge", {js:{to:to.lineIn,from:to.lineOut,path:path}}, function(end, packet){
-    // TODO we can try another one if failed?
-    if(end !== true) return debug("failed to create bridge",end,via.hashname);
-    // create our mapping!
-    path.bridged = packet.sender;
-    self.send(packet.sender,path.bridgeq);
-    delete path.bridgeq;
   });
 }
 
@@ -22664,8 +22663,7 @@ function online(callback)
   if(self.waits.length > 0) return self.waiting = function(){self.online(callback)};
   self.isOnline = true;
   // ping lan
-  self.lanToken = randomHEX(16);
-  self.send({type:"lan"}, pencode({type:"lan",lan:self.lanToken,from:self.parts}));
+  self.send({type:"lan"}, pencode(self.ping()));
 
   var dones = self.seeds.length;
   if(!dones) {
@@ -22677,7 +22675,7 @@ function online(callback)
   function done()
   {
     if(!dones) return; // already called back
-    var alive = self.seeds.filter(function(seed){return seed.alive}).length;
+    var alive = self.seeds.filter(function(seed){return pathValid(seed.to)}).length;
     if(alive)
     {
       callback(null,alive);
@@ -22685,13 +22683,13 @@ function online(callback)
       return;
     }
     dones--;
-    // failed
-    if(!dones) callback("offline",0);
+    // done checking seeds
+    if(!dones) callback(self.locals.length?null:"offline",self.locals.length);
   }
 
   self.seeds.forEach(function(seed){
     seed.link(function(){
-      if(seed.alive) seed.sync();
+      if(pathValid(seed.to)) seed.pathSync();
       done();
     });
   });
@@ -22702,17 +22700,17 @@ function receive(msg, path)
 {
   var self = this;
   var packet = pdecode(msg);
-  if(!packet) return warn("failed to decode a packet from", path, msg.toString());
+  if(!packet) return warn("failed to decode a packet from", path, (new Buffer(msg)).toString("hex"));
   if(packet.length == 2) return; // empty packets are NAT pings
 
   packet.sender = path;
   packet.id = self.pcounter++;
   packet.at = Date.now();
-  debug(">>>>",Date(),msg.length, packet.head.length, [path.type,path.ip,path.port,path.id].join(","));
+  debug(">>>>",Date(),msg.length, packet.head.length, path&&[path.type,path.ip,path.port,path.id].join(","));
 
-  // handle any LAN notifications
-  if(packet.js.type == "lan") return inLan(self, packet);
-  if(packet.js.type == "seed") return inLanSeed(self, packet);
+  // handle any discovery requests
+  if(packet.js.type == "ping") return inPing(self, packet);
+  if(packet.js.type == "pong") return inPong(self, packet);
 
   // either it's an open
   if(packet.head.length == 1)
@@ -22726,54 +22724,57 @@ function receive(msg, path)
 
     var from = self.whokey(open.js.from,open.key);
     if (!from) return warn("invalid hashname", open.js.from);
+    from.csid = open.csid;
 
     // make sure this open is legit
     if (typeof open.js.at != "number") return warn("invalid at", open.js.at);
 
-    // duplicate open and there's newer line packets, ignore it
-    if(from.openAt && open.js.at <= from.openAt && from.lineAt == from.openAt) return;
+    // older open, ignore it
+    if(from.openAt && open.js.at < from.openAt) return debug("dropping older open");
+    from.openAt = open.js.at;
 
-    // open is legit!
-    debug("inOpen verified", from.hashname);
-    from.recvAt = Date.now();
+    debug("inOpen verified", from.hashname,path&&JSON.stringify(path.json));
 
-    // add this path in
+    // ignore incoming opens if too fast or recent duplicates
+    if(open.js.line == from.lineIn)
+    {
+      var age = Date.now() - (from.openAcked||0);
+      if((age < defaults.seek_timeout) || (age < defaults.nat_timeout && from.openDup >= 3)) return;
+      from.openDup++;
+    }else{
+      from.openDup = 0;
+    }
+    
+    // always minimally flag activity and send an open ack back via network or relay
+    var openAck = from.open(); // inits line crypto
+    from.active();
+    from.openAcked = Date.now();
     path = from.pathIn(path);
+    if(path) self.send(path,openAck,from);
+    else if(from.relayChan) from.relayChan.send({body:openAck});
 
-    // if new line id, reset incoming channels
+    // only do new line setup once
     if(open.js.line != from.lineIn)
     {
-      debug("new line");
+      from.lineIn = open.js.line;
+      debug("new line",from.lineIn,from.lineOut);
+      self.CSets[open.csid].openline(from, open);
+      self.lines[from.lineOut] = from;
+
+      // force reset old channels
       Object.keys(from.chans).forEach(function(id){
-        if(id % 2 == from.chanOut % 2) return; // our ids
-        if(from.chans[id]) from.chans[id].fail({js:{err:"reset"}});
+        var chan = from.chans[id];
+        if(chan)
+        {
+          // SPECIAL CASE: skip channels that haven't received a packet, they're new waiting outgoing-opening ones!
+          if(!chan.recvAt) return;
+          // fail all other active channels
+          from.receive({js:{c:chan.id,err:"reset"}});
+        }
+        // actually remove so new ones w/ same id can come in
         delete from.chans[id];
       });
     }
-
-    // update values
-    var line = {};
-    from.openAt = open.js.at;
-    from.lineIn = open.js.line;
-
-    // send an open back
-    self.send(path,from.open(),from);
-
-    // line is open now!
-    from.csid = open.csid;
-    self.CSets[open.csid].openline(from, open);
-    debug("line open",from.hashname,from.lineOut,from.lineIn);
-    self.lines[from.lineOut] = from;
-
-    // resend the last sent packet again
-    if (from.lastPacket) {
-      var packet = from.lastPacket;
-      delete from.lastPacket;
-      from.send(packet)
-    }
-
-    // if it was a lan seed, add them
-    if(from.local && self.locals.indexOf(from) == -1) self.locals.push(from);
 
     return;
   }
@@ -22782,24 +22783,26 @@ function receive(msg, path)
   if(packet.head.length == 0)
   {
     var lineID = packet.body.slice(0,16).toString("hex");
-    var line = packet.from = self.lines[lineID];
+    var from = self.lines[lineID];
 
     // a matching line is required to decode the packet
-    if(!line) {
-      if(!self.bridgeLine[lineID]) return debug("unknown line received", lineID, JSON.stringify(packet.sender));
+    if(!from) {
+      if(!self.bridgeLine[lineID]) return debug("unknown line received", lineID, packet.sender);
       debug("BRIDGE",JSON.stringify(self.bridgeLine[lineID]),lineID);
       var id = crypto.createHash("sha256").update(packet.body).digest("hex")
       if(self.bridgeCache[id]) return; // drop duplicates
       self.bridgeCache[id] = true;
       // flat out raw retransmit any bridge packets
-      return self.send(self.bridgeLine[lineID],msg);
+      return self.send(self.bridgeLine[lineID],pencode(false,packet.body));
     }
 
     // decrypt and process
     var err;
-    if((err = self.CSets[line.csid].delineize(line, packet))) return debug("couldn't decrypt line",err,packet.sender);
-    line.lineAt = line.openAt;
-    line.receive(packet);
+    if((err = self.CSets[from.csid].delineize(from, packet))) return debug("couldn't decrypt line",err,packet.sender);
+    from.linedAt = from.openAt;
+    debug("LINEIN",JSON.stringify(packet.js));
+    from.active();
+    from.receive(packet);
     return;
   }
 
@@ -22814,7 +22817,6 @@ function whokey(parts, key, keys)
   if(!csid) return false;
   hn = self.whois(parts2hn(parts));
   if(!hn) return false;
-  hn.parts = parts;
   if(keys) key = keys[csid]; // convenience for addSeed
   var err = loadkey(self,hn,csid,key);
   if(err)
@@ -22822,17 +22824,24 @@ function whokey(parts, key, keys)
     warn("whokey err",hn.hashname,err);
     return false;
   }
+  if(crypto.createHash("sha256").update(hn.key).digest("hex") != parts[csid])
+  {
+    warn("whokey part mismatch",hn.hashname,csid,parts[csid],crypto.createHash("sha256").update(hn.key).digest("hex"));
+    delete hn.key;
+    return false;
+  }
+  hn.parts = parts;
+  
   return hn;
 }
 
-// this creates a hashname identity object (or returns existing)
+// this creates a hashname identity object (or returns existing), optional from creates a via relationship
 function whois(hashname)
 {
   var self = this;
   // validations
   if(!hashname) { warn("whois called without a hashname", hashname, new Error().stack); return false; }
   if(typeof hashname != "string") { warn("wrong type, should be string", typeof hashname,hashname); return false; }
-  hashname = hashname.split(",")[0]; // convenience if an address is passed in
   if(!isHEX(hashname, 64)) { warn("whois called without a valid hashname", hashname); return false; }
 
   // never return ourselves
@@ -22842,7 +22851,7 @@ function whois(hashname)
   if(hn) return hn;
 
   // make a new one
-  hn = self.all[hashname] = {hashname:hashname, chans:{}, self:self, paths:[], isAlive:0};
+  hn = self.all[hashname] = {hashname:hashname, chans:{}, self:self, paths:[], isAlive:0, sendwait:[]};
   hn.at = Date.now();
   hn.bucket = dhash(self.hashname, hashname);
   if(!self.buckets[hn.bucket]) self.buckets[hn.bucket] = [];
@@ -22855,11 +22864,7 @@ function whois(hashname)
 
   hn.pathGet = function(path)
   {
-    if(["ipv4","ipv6","http","relay","webrtc","local"].indexOf(path.type) == -1)
-    {
-      warn("unknown path type", JSON.stringify(path));
-      return path;
-    }
+    if(typeof path != "object" || typeof path.type != "string") return false;
 
     var match = pathMatch(path, hn.paths);
     if(match) return match;
@@ -22871,21 +22876,26 @@ function whois(hashname)
     info(hn.hashname,path.type,JSON.stringify(path.json));
     hn.paths.push(path);
 
-    // always default to minimum priority
-    if(typeof path.priority != "number") path.priority = (path.type=="relay")?-1:0;
-
     // track overall if they have a public IP network
     if(!isLocalPath(path)) hn.isPublic = true;
+
+    // if possibly behind the same NAT (same public ip), set flag to allow/ask to share local paths
+    if(path.type == "ipv4") self.paths.forEach(function(path2){
+      if(path2.type == "ipv4" && path2.ip == path.ip) hn.isLocal = true;
+    })
 
     return path;
   }
 
   hn.pathOut = function(path)
   {
-    if(!path) return false;
     path = hn.pathGet(path);
-    if(path.type == "relay" && path.relay.ended) return hn.pathEnd(path);
-    path.lastOut = Date.now();
+    if(!path) return false;
+
+    // send a NAT hole punching empty packet the first time
+    if(!path.sentAt && path.type == "ipv4") self.send(path,pencode());
+
+    path.sentAt = Date.now();
     if(!pathValid(hn.to) && pathValid(path)) hn.to = path;
     return path;
   }
@@ -22905,13 +22915,12 @@ function whois(hashname)
   hn.pathIn = function(path)
   {
     path = hn.pathGet(path);
+    if(!path) return false;
 
     // first time we've seen em
-    if(!path.lastIn && !path.lastOut)
+    if(!path.recvAt && !path.sentAt)
     {
-      debug("PATH INNEW",JSON.stringify(path.json),hn.paths.map(function(p){return JSON.stringify(p.json)}));
-      // for every new incoming path, trigger a sync (delayed so caller can continue/respond first)
-      setTimeout(hn.sync,1);
+      debug("PATH INNEW",isLocalPath(path)?"local":"public",JSON.stringify(path.json),hn.paths.map(function(p){return JSON.stringify(p.json)}));
 
       // update public ipv4 info
       if(path.type == "ipv4" && !isLocalIP(path.ip))
@@ -22924,94 +22933,101 @@ function whois(hashname)
       hn.paths.forEach(function(other){
         if(other == path) return;
         if(other.type != path.type) return;
-        if(!pathValid(other)) hn.pathEnd(other);
+        if(!pathValid(other)) return hn.pathEnd(other);
+        // remove any previous path on the same IP
+        if(path.ip && other.ip == path.ip) return hn.pathEnd(other);
+        // remove any previous http path entirely
+        if(path.type == "http") return hn.pathEnd(other);
       });
       
-      // "local" custom paths, we must bridge for
-      if(path.type == "local") hn.bridging = true;
+      // any custom non-public paths, we must bridge for
+      if(pathShareOrder.indexOf(path.type) == -1) hn.bridging = true;
 
       // track overall if we trust them as local
       if(isLocalPath(path)) hn.isLocal = true;
     }
 
-    path.lastIn = Date.now();
-    self.recvAt = Date.now();
-    
-    // end any active relay
-    if(hn.to && hn.to.type == "relay" && path.type != "relay") hn.to.relay.fail();
-
-    // update default if better
-    if(!pathValid(hn.to) || pathValid(path)) hn.to = path;
-    hn.alive = pathValid(hn.to);
+    // always update default to newest
+    path.recvAt = Date.now();
+    hn.to = path;
 
     return path;
   }
+  
+  // track whenever a hashname is active
+  hn.active = function()
+  {
+    self.recvAt = Date.now();
 
+    // if we've not been active, (re)sync paths
+    if(!hn.recvAt || (Date.now() - hn.recvAt) > defaults.nat_timeout) setTimeout(function(){hn.pathSync()},10);
+    hn.recvAt = Date.now();
+
+    // resend any waiting packets (if they're still valid)
+    hn.sendwait.forEach(function(packet){
+      if(!hn.chans[packet.js.c]) return;
+      hn.send(packet);
+    });
+    hn.sendwait = [];
+  }
+  
   // try to send a packet to a hashname, doing whatever is possible/necessary
   hn.send = function(packet){
+    if(Buffer.isBuffer(packet)) console.log("lined packet?!",hn.hashname,typeof hn.sendwait.length,new Error().stack);
     // if there's a line, try sending it via a valid network path!
     if(hn.lineIn)
     {
       debug("line sending",hn.hashname,hn.lineIn);
-      var lined = packet.msg || self.CSets[hn.csid].lineize(hn, packet);
+      var lined = self.CSets[hn.csid].lineize(hn, packet);
       hn.sentAt = Date.now();
-      
-      // directed packets are preferred, just dump and done
+
+      // directed packets, just dump and done
       if(packet.to) return self.send(packet.to, lined, hn);
 
-      // send to the default best path
-      if(hn.to) self.send(hn.to, lined, hn);
+      // if there's a valid path to them, just use it
+      if(pathValid(hn.to)) return self.send(hn.to, lined, hn);
 
-      // if it was good, we're done, if not fall through
-      if(pathValid(hn.to)) return;
+      // if relay, always send it there
+      if(hn.relayChan) return hn.relayChan.send({body:lined});
+
+      // everything else falls through
     }
-
+    
     // we've fallen through, either no line, or no valid paths
-    debug("alive failthrough",hn.sendSeek,Object.keys(hn.vias||{}));
-    hn.alive = hn.openAt = false;
-    hn.lastPacket = packet; // will be resent if/when an open is received
+    hn.openAt = false;
 
-    // always send to all known paths, increase resiliency
+    // add to queue to send on line
+    if(hn.sendwait.indexOf(packet) == -1) hn.sendwait.push(packet);
+
+    // TODO should we rate-limit the flow into this section?
+    debug("alive failthrough",hn.sendSeek,Object.keys(hn.vias||{}));
+
+    // always send to open all known paths to increase restart-resiliency
     hn.paths.forEach(function(path){
       self.send(path, hn.open(), hn);
     });
 
-    // also try using any via informtion to create a new line
+    // todo change all .see processing to add via info, and change inConnect
     function vias()
     {
       if(!hn.vias) return;
-      hn.sentOpen = false; // whenever we send a peer, we'll always need to resend any open regardless
-      // try to connect vias
       var todo = hn.vias;
-      delete hn.vias; // never use more than once
+      delete hn.vias; // never use more than once so we re-seek
+      // send a peer request to all of them
       Object.keys(todo).forEach(function(via){
-        var address = todo[via].split(",");
-        if(address.length <= 1) return;
-        if(address.length == 4 && address[2].split(".").length == 4 && parseInt(address[3]) > 0)
-        {
-          // NAT hole punching
-          var path = {type:"ipv4",ip:address[2],port:parseInt(address[3])};
-          self.send(path,pencode());
-          // if possibly behind the same NAT (same public ip), set flag to allow/ask to share local paths
-          self.paths.forEach(function(path2){
-            if(path2.type == "ipv4" && path2.ip == path.ip) hn.isLocal = true;
-          })
-        }
-        // send the peer request
-        self.whois(via).peer(hn.hashname, address[1]);
+        self.whois(via).peer(hn.hashname,todo[via]);
       });
     }
 
     // if there's via information, just try that
     if(hn.vias) return vias();
 
-
     // never too fast, worst case is to try to seek again
     if(!hn.sendSeek || (Date.now() - hn.sendSeek) > 5000)
     {
       hn.sendSeek = Date.now();
       self.seek(hn, function(err){
-        if(!hn.lastPacket) return; // packet was already sent elsewise
+        if(!hn.sendwait.length) return; // already connected
         vias(); // process any new vias
       });
     }
@@ -23024,10 +23040,9 @@ function whois(hashname)
 //    if((Math.floor(Math.random()*10) == 4)) return warn("testing dropping randomly!");
     if(!packet.js || typeof packet.js.c != "number") return warn("dropping invalid channel packet",packet.js);
 
-    debug("LINEIN",JSON.stringify(packet.js));
-    hn.recvAt = Date.now();
     // normalize/track sender network path
     packet.sender = hn.pathIn(packet.sender);
+    packet.from = hn;
 
     // find any existing channel
     var chan = hn.chans[packet.js.c];
@@ -23038,17 +23053,8 @@ function whois(hashname)
     var listening = {};
     if(typeof packet.js.seq == "undefined") listening = self.raws;
     if(packet.js.seq === 0) listening = self.rels;
-    if(!listening[packet.js.type])
-    {
-      // bounce error
-      if(!packet.js.end && !packet.js.err)
-      {
-        warn("bouncing unknown channel/type",packet.js);
-        var err = (packet.js.type) ? "unknown type" : "unknown channel"
-        hn.send({js:{err:err,c:packet.js.c}});
-      }
-      return;
-    }
+    // ignore/drop unknowns
+    if(!listening[packet.js.type]) return;
 
     // verify incoming new chan id
     if(packet.js.c % 2 == hn.chanOut % 2) return warn("channel id incorrect",packet.js.c,hn.chanOut)
@@ -23059,18 +23065,28 @@ function whois(hashname)
     chan.receive(packet);
   }
   
-  hn.chanDone = function(id)
+  hn.chanEnded = function(id)
   {
+    if(!hn.chans[id]) return;
+    debug("channel ended",id,hn.chans[id].type,hn.hashname);
     hn.chans[id] = false;
   }
 
-  // track who told us about this hn
-  hn.via = function(from, address)
+  // track other hashnames this one sees
+  hn.sees = function(address)
   {
-    if(typeof address != "string") return warn("invalid see address",address);
-    if(!hn.vias) hn.vias = {};
-    if(hn.vias[from.hashname]) return;
-    hn.vias[from.hashname] = address;
+    if(typeof address != "string") warn("invalid see address",address,hn.hashname);
+    if(typeof address != "string") return false;
+    var parts = address.split(",");
+    if(!self.isHashname(parts[0]) || parts[0] == self.hashname) return false;
+    var see = self.whois(parts[0]);
+    if(!see) return false;
+    // save suggested path if given/valid
+    if(parts.length >= 4 && parts[2].split(".").length == 4 && parseInt(parts[3]) > 0) see.pathGet({type:"ipv4",ip:parts[2],port:parseInt(parts[3])});
+    if(!see.vias) see.vias = {};
+    // save suggested csid if we don't know one yet
+    see.vias[hn.hashname] = see.cisd || parts[1];
+    return see;
   }
 
   // just make a seek request conveniently
@@ -23098,6 +23114,7 @@ function whois(hashname)
   {
     if(!callback) callback = function(){}
 
+    debug("LINKTRY",hn.hashname);
     var js = {seed:self.seed};
     js.see = self.buckets[hn.bucket].sort(function(a,b){ return a.age - b.age }).filter(function(a){ return a.seed }).map(function(seed){ return seed.address(hn) }).slice(0,8);
     // add some distant ones if none
@@ -23109,7 +23126,7 @@ function whois(hashname)
       });
     });
 
-    if(self.isBridge(hn)) js.bridges = Object.keys(self.networks).filter(function(type){return (["local","relay"].indexOf(type) >= 0)?false:true});
+    if(self.isBridge(hn)) js.bridges = self.paths.filter(function(path){return !isLocalPath(path)}).map(function(path){return path.type});
 
     if(hn.linked)
     {
@@ -23117,26 +23134,21 @@ function whois(hashname)
       return callback();
     }
 
-    hn.raw("link", {retry:3, js:js}, function(err, packet, chan){
+    hn.linked = hn.raw("link", {retry:3, js:js, timeout:defaults.idle_timeout}, function(err, packet, chan){
       inLink(err, packet, chan);
       callback(packet.js.err);
     });
   }
 
-  // send a simple lossy peer request, don't care about answer
+  // send a peer request and set up relay tunnel
   hn.peer = function(hashname, csid)
   {
     if(!csid || !self.parts[csid]) return;
     var js = {"peer":hashname};
     js.paths = hn.pathsOut();
-    hn.raw("peer",{js:js, body:getkey(self,csid)}, function(err, packet, chan){
-      if(err) return;
-      if(!packet.body) return warn("relay in w/ no body",packet.js,packet.from.hashname);
-      // create a network path that maps back to this channel
-      var path = {type:"relay",relay:chan,json:{type:"relay",relay:packet.from.hashname}};
-      if(packet.js.bridge) path = packet.sender; // sender is offering to bridge, use them!
-      if(packet.js.warn) info("relay warning",packet.js.warn);
-      if(packet.body) self.receive(packet.body, path);
+    hn.raw("peer",{timeout:defaults.nat_timeout, js:js, body:getkey(self,csid)}, function(err, packet, chan){
+      if(!chan.relayTo) chan.relayTo = self.whois(hashname);
+      inRelay(chan, packet);
     });
   }
 
@@ -23144,8 +23156,7 @@ function whois(hashname)
   hn.open = function()
   {
     if(!hn.parts) return false; // can't open if no key
-    if(hn.opened) return hn.opened;
-    hn.opened = openize(self,hn);
+    if(!hn.opened) hn.opened = openize(self,hn);
     return hn.opened;
   }
 
@@ -23160,29 +23171,60 @@ function whois(hashname)
     return paths;
   }
 
-  // send a full network path sync
-  hn.sync = function()
+  // send a path sync
+  hn.pathSync = function()
   {
-    debug("SYNCING",hn.hashname,hn.paths.map(function(p){return JSON.stringify(p.json)}));
-
-    // compose all of our known paths we can send to them
+    if(hn.pathSyncing) return;
+    hn.pathSyncing = true;
+    debug("pathSync",hn.hashname);
+    var js = {};
     var paths = hn.pathsOut();
+    if(paths.length > 0) js.paths = paths;
+    var alive = [];
+    hn.raw("path",{js:js, timeout:10*1000}, function(err, packet){
+      if(err)
+      {
+        hn.pathSyncing = false;
+        return;
+      }
 
-    // check all paths at once
-    hn.paths.forEach(function(path){
-      debug("PATHLOOP",hn.paths.length,JSON.stringify(path.json));
-      var js = {};
-      if(["relay","local"].indexOf(path.type) == -1) js.path = path.json;
-      // our outgoing priority of this path
-      js.priority = (path.type == "relay") ? 0 : 1;
-      if(paths.length > 0) js.paths = paths;
-      var lastIn = path.lastIn;
-      hn.raw("path",{js:js, timeout:3000, to:path}, function(err, packet){
-        // when it actually errored and hasn't been active, invalidate it
-        if(err && err !== true && path.lastIn == lastIn) path.lastIn = 0;
-        else inPath(true, packet); // handles any response .priority and .paths
+      // if path answer is from a seed, update our public ip/port in case we're behind a NAT
+      if(packet.from.isSeed && typeof packet.js.path == "object" && packet.js.path.type == "ipv4" && !isLocalIP(packet.js.path.ip))
+      {
+        debug("updating public ipv4",JSON.stringify(self.pub4),JSON.stringify(packet.js.path));
+        self.pathSet(self.pub4,true);
+        self.pub4 = {type:"ipv4", ip:packet.js.path.ip, port:parseInt(packet.js.path.port)};
+        self.pathSet(self.pub4);
+      }
+      
+      if(!packet.sender) return; // no sender path is bad
+
+      // add to all answers and update best default from active ones
+      alive.push(packet.sender);
+      var best = packet.sender;
+      alive.forEach(function(path){
+        if(pathShareOrder.indexOf(best.type) < pathShareOrder.indexOf(path.type)) return;
+        if(isLocalPath(best)) return; // always prefer (the first) local paths
+        best = path;
       });
+      debug("pathSync best",hn.hashname,JSON.stringify(best.json));
+      hn.to = best;
     });
+  }
+  
+  // create a ticket buffer to this hn w/ this packet
+  hn.ticket = function(packet)
+  {
+    if(self.pencode(packet).length > 1024) return false;
+    return ticketize(self, hn, packet);
+  }
+
+  // decode a ticket buffer from them
+  hn.ticketed = function(ticket)
+  {
+    packet = pdecode(ticket);
+    if(!packet) return false;
+    return deticketize(self, hn, packet);
   }
 
   return hn;
@@ -23207,7 +23249,7 @@ function seek(hn, callback)
   Object.keys(self.buckets).forEach(function(bucket){
     self.buckets[bucket].forEach(function(link){
       if(link.hashname == hn) return; // ignore the one we're (re)seeking
-      if(link.seed && link.alive) seeds.push(link);
+      if(link.seed && pathValid(link.to)) seeds.push(link);
     });
   });
   seeds.sort(function(a,b){ return dhash(hn.hashname,a.hashname) - dhash(hn.hashname,b.hashname) }).slice(0,3).forEach(function(seed){
@@ -23260,14 +23302,13 @@ function seek(hn, callback)
     if(wise[mine]) closest = distance; // update distance if trusted
     doing[mine] = true;
     var to = self.whois(mine);
-    to.seek(hn.hashname, function(err, see){
-      see.forEach(function(item){
-        var sug = self.whois(item);
-        if(!sug) return;
+    to.seek(hn.hashname, function(err, sees){
+      sees.forEach(function(address){
+        var see = to.sees(address);
+        if(!see) return;
         // if this is the first entry and from a wise one, give them wisdom too
-        if(wise[to.hashname] && see.indexOf(item) == 0) wise[sug.hashname] = true;
-        sug.via(to, item);
-        queue.push(sug.hashname);
+        if(wise[to.hashname] && sees.indexOf(address) == 0) wise[see.hashname] = true;
+        queue.push(see.hashname);
       });
       sort();
       did[mine] = true;
@@ -23289,20 +23330,24 @@ function raw(type, arg, callback)
   var hn = this;
   var chan = {type:type, callback:callback};
   chan.id = arg.id;
+  chan.startAt = Date.now();
   if(!chan.id)
   {
     chan.id = hn.chanOut;
     hn.chanOut += 2;
   }
+  chan.isOut = (chan.id % 2 == hn.chanOut % 2);
   hn.chans[chan.id] = chan;
 
-  // raw channels always timeout/expire after the last sent/received packet
-  if(!arg.timeout) arg.timeout = defaults.chan_timeout;
+  // raw channels always timeout/expire after the last received packet
   function timer()
   {
     if(chan.timer) clearTimeout(chan.timer);
     chan.timer = setTimeout(function(){
-      chan.fail({js:{err:"timeout"}});
+      // signal incoming error if still open, restarts timer
+      if(!chan.ended) return hn.receive({js:{err:"timeout",c:chan.id}});
+      // clean up references if ended
+      hn.chanEnded(chan.id);
     }, arg.timeout);
   }
   chan.timeout = function(timeout)
@@ -23310,7 +23355,8 @@ function raw(type, arg, callback)
     arg.timeout = timeout;
     timer();
   }
-
+  chan.timeout(arg.timeout || defaults.chan_timeout);
+  
   chan.hashname = hn.hashname; // for convenience
 
   debug("new unreliable channel",hn.hashname,chan.type,chan.id);
@@ -23319,11 +23365,11 @@ function raw(type, arg, callback)
   chan.receive = function(packet)
   {
     if(!hn.chans[chan.id]) return debug("dropping receive packet to dead channel",chan.id,packet.js)
-    // if err'd or ended, delete ourselves
-    if(packet.js.err || packet.js.end) chan.fail();
-    chan.last = packet.sender; // cache last received network
+    chan.opened = true;
+    chan.ended = chan.ended || packet.js.err || packet.js.end;
     chan.recvAt = Date.now();
-    chan.callback(packet.js.err||packet.js.end, packet, chan);
+    chan.last = packet.sender;
+    chan.callback(chan.ended, packet, chan);
     timer();
   }
 
@@ -23333,25 +23379,26 @@ function raw(type, arg, callback)
     if(!hn.chans[chan.id]) return debug("dropping send packet to dead channel",chan.id,packet.js);
     if(!packet.js) packet.js = {};
     packet.js.c = chan.id;
-    debug("SEND",chan.type,JSON.stringify(packet.js));
+    chan.ended = chan.ended || packet.js.err || packet.js.end;
     chan.sentAt = Date.now();
-    if(!packet.to && pathValid(chan.last)) packet.to = chan.last; // always send back to the last received for this channel
+    debug("SEND",chan.type,JSON.stringify(packet.js),packet.body&&packet.body.length);
     hn.send(packet);
-    // if err'd or ended, delete ourselves
-    if(packet.js.err || packet.js.end) chan.fail();
-    timer();
+  }
+  
+  // convenience
+  chan.end = function()
+  {
+    if(chan.ended) return;
+    chan.send({js:{end:true}});
   }
 
-  chan.fail = function(packet){
-    if(chan.ended) return; // prevent multiple calls
-    hn.chanDone(chan.id);
-    chan.ended = true;
-    if(packet)
-    {
-      packet.from = hn;
-      chan.callback(packet.js.err, packet, chan, function(){});
-    }
+  chan.fail = function(err)
+  {
+    if(chan.ended) return;
+    chan.ended = err || "failed";
+    hn.send({js:{err:chan.ended,c:chan.id}});
   }
+
 
   // send optional initial packet with type set
   if(arg.js)
@@ -23363,7 +23410,7 @@ function raw(type, arg, callback)
     {
       var at = 1000;
       function retry(){
-        if(chan.ended || chan.recvAt) return; // means we're gone or received a packet
+        if(chan.ended || chan.opened) return; // means we're gone or received a packet
         chan.send(arg);
         if(at < 4000) at *= 2;
         arg.retry--;
@@ -23382,13 +23429,14 @@ function channel(type, arg, callback)
   var hn = this;
   var chan = {inq:[], outq:[], outSeq:0, inDone:-1, outConfirmed:-1, lastAck:-1, callback:callback};
   chan.id = arg.id;
+  chan.startAt = Date.now();
   if(!chan.id)
   {
     chan.id = hn.chanOut;
     hn.chanOut += 2;
   }
+  chan.isOut = (chan.id % 2 == hn.chanOut % 2);
   hn.chans[chan.id] = chan;
-  chan.timeout = arg.timeout || defaults.chan_timeout;
   // app originating if not bare, be friendly w/ the type, don't double-underscore if they did already
   if(!arg.bare && type.substr(0,1) !== "_") type = "_"+type;
   chan.type = type; // save for debug
@@ -23396,6 +23444,13 @@ function channel(type, arg, callback)
   chan.hashname = hn.hashname; // for convenience
 
   debug("new channel",hn.hashname,chan.type,chan.id);
+  
+  // configure default timeout, for resend
+  chan.timeout = function(timeout)
+  {
+    arg.timeout = timeout;
+  }
+  chan.timeout(arg.timeout || defaults.chan_timeout);
 
   // used by app to change how it interfaces with the channel
   chan.wrap = function(wrap)
@@ -23405,45 +23460,31 @@ function channel(type, arg, callback)
   }
 
   // called to do eventual cleanup
-  chan.done = function(){
-    if(chan.ended) return; // prevent multiple calls
-    chan.ended = true;
-    debug("channel done",chan.id);
-    hn.chanDone(chan.id);
-  };
-
-  // used to internally fail a channel, timeout or connection failure
-  chan.fail = function(packet){
-    if(chan.errored) return; // prevent multiple calls
-    chan.errored = packet;
-    packet.from = hn;
-    chan.callback(packet.js.err, packet, chan, function(){});
-    chan.done();
+  function cleanup()
+  {
+    if(chan.timer) clearTimeout(chan.timer);
+    chan.timer = setTimeout(function(){
+      chan.ended = chan.ended || true;
+      hn.chanEnded(chan.id);
+    }, arg.timeout);
   }
-
-  // simple convenience wrapper to end the channel
-  chan.end = function(){
-    chan.send({end:true});
-    chan.done();
-  };
-
-  // errors are hard-send-end
-  chan.err = function(err){
-    if(chan.errored) return;
-    chan.errored = {js:{err:err,c:chan.id}};
-    hn.send(chan.errored);
-    chan.done();
-  };
 
   // process packets at a raw level, handle all miss/ack tracking and ordering
   chan.receive = function(packet)
   {
     // if it's an incoming error, bail hard/fast
-    if(packet.js.err) return chan.fail(packet);
+    if(packet.js.err)
+    {
+      chan.inq = [];
+      chan.ended = packet.js.err;
+      chan.callback(packet.js.err, packet, chan, function(){});
+      cleanup();
+      return;
+    }
 
-    // in errored state, only/always reply with the error and drop
-    if(chan.errored) return chan.send(chan.errored);
-    chan.lastIn = Date.now();
+    chan.recvAt = Date.now();
+    chan.opened = true;
+    chan.last = packet.sender;
 
     // process any valid newer incoming ack/miss
     var ack = parseInt(packet.js.ack);
@@ -23464,6 +23505,7 @@ function channel(type, arg, callback)
         // packet acknowleged!
         if(pold.js.seq <= ack) {
           if(pold.callback) pold.callback();
+          if(pold.js.end) cleanup();
           return;
         }
         chan.outq.push(pold);
@@ -23507,15 +23549,16 @@ function channel(type, arg, callback)
     if(!packet && chan.inq.length > 0) chan.forceAck = true;
     if(!packet) return;
     chan.handling = true;
+    chan.ended = chan.ended || packet.js.end;
     if(!chan.safe) packet.js = packet.js._ || {}; // unescape all content json
-    chan.callback(packet.js.end, packet, chan, function(ack){
-      // catch whenever it was ended to start cleanup
-      if(packet.js.end) chan.endIn = true;
-      if(chan.endOut && chan.endIn) chan.done();
+    chan.callback(chan.ended, packet, chan, function(ack){
+      // catch whenever it was ended to do cleanup
       chan.inq.shift();
       chan.inDone++;
       chan.handling = false;
       if(ack) chan.ack(); // auto-ack functionality
+      // cleanup eventually
+      if(chan.ended) cleanup();
       chan.handler();
     });
   }
@@ -23527,14 +23570,14 @@ function channel(type, arg, callback)
     if(!chan.outq.length) return;
     var lastpacket = chan.outq[chan.outq.length-1];
     // timeout force-end the channel
-    if(Date.now() - lastpacket.sentAt > chan.timeout)
+    if(Date.now() - lastpacket.sentAt > arg.timeout)
     {
-      chan.fail({js:{err:"timeout"}});
+      hn.receive({js:{err:"timeout",c:chan.id}});
       return;
     }
     debug("channel resending");
     chan.ack(lastpacket);
-    setTimeout(chan.resend, defaults.chan_resend); // recurse until chan_timeout
+    setTimeout(function(){chan.resend()}, defaults.chan_resend); // recurse until chan_timeout
   }
 
   // add/create ack/miss values and send
@@ -23568,20 +23611,23 @@ function channel(type, arg, callback)
     // now validate and send the packet
     packet.js.c = chan.id;
     debug("SEND",chan.type,JSON.stringify(packet.js));
+    cleanup();
     hn.send(packet);
-
-    // catch whenever it was ended to start cleanup
-    if(packet.js.end) chan.endOut = true;
-    if(chan.endOut && chan.endIn) chan.done();
   }
 
   // send content reliably
   chan.send = function(arg)
   {
-    if(chan.ended) return warn("can't send to an ended channel");
-
     // create a new packet from the arg
     if(!arg) arg = {};
+    // immediate fail errors
+    if(arg.err)
+    {
+      if(chan.ended) return;
+      chan.ended = arg.err;
+      hn.send({js:{err:arg.err,c:chan.id}});
+      return cleanup();
+    }
     var packet = {};
     packet.js = chan.safe ? arg.js : {_:arg.js};
     if(arg.type) packet.js.type = arg.type;
@@ -23601,8 +23647,24 @@ function channel(type, arg, callback)
 
     // to auto-resend if it isn't acked
     if(chan.resender) clearTimeout(chan.resender);
-    chan.resender = setTimeout(chan.resend, defaults.chan_resend);
+    chan.resender = setTimeout(function(){chan.resend()}, defaults.chan_resend);
     return chan;
+  }
+
+  // convenience
+  chan.end = function()
+  {
+    if(chan.ended) return chan.ack();
+    chan.send({js:{end:true}});
+  }
+
+  // send error immediately, flexible arguments
+  chan.fail = function(arg)
+  {
+    var err = "failed";
+    if(typeof arg == "string") err = arg;
+    if(typeof arg == "object" && arg.js && arg.js.err) err = arg.js.err;
+    chan.send({err:err});
   }
 
   // send optional initial packet with type set
@@ -23615,40 +23677,104 @@ function channel(type, arg, callback)
   return chan;
 }
 
+function inRelay(chan, packet)
+{
+  var to = chan.relayTo;
+  var self = packet.from.self;
+
+  // if the active relay is failing, try to create one via a bridge
+  if((packet.js.err || packet.js.warn) && !chan.migrating && to.relayChan == chan)
+  {
+    debug("relay failing, trying to migrate",to.hashname);
+    chan.migrating = true;
+    // try to find all bridges w/ a matching path type
+    var bridges = [];
+    to.paths.forEach(function(path){
+      if(!self.bridges[path.type]) return;
+      Objet.keys(self.bridges[path.type]).forEach(function(id){
+        if(bridges.indexOf(id) == -1) bridges.push(id);
+      });
+    });
+    // TODO, some way to sort them, retry?
+    var done;
+    bridges.forEach(function(id){
+      if(done) return;
+      if(id == to.hashname || id == packet.from.hashname) return; // lolz
+      var hn = self.whois(id);
+      if(!pathValid(hn.to)) return;
+      // send peer request through the bridge
+      done = hn.peer(to.hashname,to.csid);
+    });
+  }
+
+  if(packet.js.err || packet.js.end)
+  {
+    debug("ending relay from",chan.hashname,"to",to.hashname,packet.js.err||packet.js.end);
+    if(to.relayChan == chan) to.relayChan = false;
+    return;
+  }
+  
+  // clear any older default paths
+  if(to.to && to.to.recvAt < chan.startAt) to.to = false;
+  
+  // most recent is always the current default back
+  to.relayChan = chan;
+  
+  // if the sender has created a bridge, use their path as the packet's origin!
+  var path = (packet.js.bridge) ? packet.sender : false;
+  if(packet.body && packet.body.length) self.receive(packet.body, path);
+
+  // always try a path sync to upgrade the relay
+  to.pathSync();
+}
+
 // someone's trying to connect to us, send an open to them
 function inConnect(err, packet, chan)
 {
-  if(err || !packet.body) return;
-  var self = packet.from.self;
-
   // if this channel is acting as a relay
-  if(chan.relay)
-  {
-    // create a virtual network path that maps back to this channel
-    var path = {type:"relay",relay:chan,json:{type:"relay",relay:packet.from.hashname}};
-    if(packet.js.bridge) path = packet.sender; // sender is offering to bridge, use them!
-    if(packet.js.warn) info("relay warning",packet.js.warn);
-    if(packet.body) self.receive(packet.body, path);
-    return;
-  }
+  if(chan.relayTo) return inRelay(chan, packet);
 
-  var to = chan.relay = self.whokey(packet.js.from,packet.body);
-  if(!chan.relay) return warn("invalid connect request from",packet.from.hashname,packet.js);
+  var to = chan.relayTo = packet.from.self.whokey(packet.js.from,packet.body);
+  if(!chan.relayTo) return warn("invalid connect request from",packet.from.hashname,packet.js);
+
+  // up the timeout to the nat default
+  chan.timeout(defaults.nat_timeout);
 
   // try the suggested paths
   if(Array.isArray(packet.js.paths)) packet.js.paths.forEach(function(path){
     if(typeof path.type != "string") return debug("bad path",JSON.stringify(path));
-    self.send(path,to.open(),to);
+    packet.from.self.send(path,to.open(),to);
   });
 
   // send back an open through the connect too
   chan.send({body:to.open()});
+  
+  // we know they see them too
+  packet.from.sees(to.hashname);
 }
 
 function relay(self, from, to, packet)
 {
-  if(from.ended && !to.ended) return to.fail({js:{err:"disconnected"}});
-  if(to.ended && !from.ended) return from.fail({js:{err:"disconnected"}});
+  if(from.ended && !to.ended) return to.send({js:{err:"disconnected"}});
+  if(to.ended && !from.ended) return from.send({js:{err:"disconnected"}});
+
+  // check to see if we should set the bridge flag for line packets
+  var js = {};
+  if(self.isBridge(from.hashname) || self.isBridge(to.hashname))
+  {
+    var bp = pdecode(packet.body);
+    var id = bp && bp.body && bp.body.length > 16 && bp.body.slice(0,16).toString("hex");
+    // only create bridge once from valid line packet
+    if(id && bp.head.length == 0 && !to.bridged && to.last && !self.lines[id])
+    {
+      to.bridged = true;
+      debug("auto-bridging",to.hashname,id,JSON.stringify(to.last.json))
+      self.bridgeLine[id] = JSON.parse(JSON.stringify(to.last.json));
+    }
+  }
+
+  // have to seen both directions to bridge
+  if(from.bridged && to.bridged) js = {"bridge":true};
 
   // throttle
   if(!from.relayed || Date.now() - from.relayed > 1000)
@@ -23659,23 +23785,11 @@ function relay(self, from, to, packet)
   from.relays++;
   if(from.relays > 5)
   {
-    debug("relay too fast, dropping",from.relays);
-    from.send({js:{warn:"dropped"}});
-    return;
-  }
-
-  // check to see if we should set the bridge flag for line packets
-  var js;
-  if(self.isBridge(from.hashname) || self.isBridge(to.hashname))
-  {
-    var bp = pdecode(packet.body);
-    if(bp && bp.head.length == 0 && !to.bridged)
-    {
-      to.bridged = true;
-      self.bridgeLine[bp.body.slice(0,16).toString("hex")] = to.last;
-    }
-    // have to seen both directions to bridge
-    if(from.bridged && to.bridged) js = {"bridge":true};
+    debug("relay too fast, warning",from.relays);
+    js.warn = "toofast";
+    // TODO start dropping these again in production
+//    from.send({js:js});
+//    return;
   }
 
   from.relayed = Date.now();
@@ -23691,24 +23805,32 @@ function inPeer(err, packet, chan)
 
   if(!isHEX(packet.js.peer, 64)) return;
   var peer = self.whois(packet.js.peer);
-  if(!peer || !peer.lineIn) return; // these happen often as lines come/go, ignore dead peer requests
-  var js = {from:packet.from.parts};
+  if(!peer) return;
+  
+  // only accept peer if active network or support bridging for either party
+  if(!(pathValid(peer.to) || self.isBridge(packet.from.hashname) || self.isBridge(peer.hashname))) return debug("disconnected peer request");
 
   // sanity on incoming paths array
   if(!Array.isArray(packet.js.paths)) packet.js.paths = [];
 
-  // insert in incoming IP path (safely)
-  if(packet.sender.type.indexOf("ip") == 0 && (!isLocalPath(packet.sender) || peer.isLocal)) packet.js.paths.push(packet.sender.json);
+  // insert our known usable/safe sender paths
+  packet.from.paths.forEach(function(path){
+    if(!path.recvAt) return;
+    if(pathShareOrder.indexOf(path.type) == -1) return;
+    if(isLocalPath(path) && !peer.isLocal) return;
+    packet.js.paths.push(path.json);
+  });
 
   // load/cleanse all paths
-  js.paths = [];
+  var js = {from:packet.from.parts,paths:[]};
   packet.js.paths.forEach(function(path){
     if(typeof path.type != "string") return;
-    if(pathMatch(js.paths,path)) return; // duplicate
+    if(pathMatch(path,js.paths)) return; // duplicate
     js.paths.push(path);
   });
 
-  // must bundle the senders key so the recipient can open them
+  // start relay via connect, must bundle the senders key so the recipient can open them
+  chan.timeout(defaults.nat_timeout);
   chan.relay = peer.raw("connect",{js:js, body:packet.body},function(err, packet, chan2){
     if(err) return;
     relay(self, chan2, chan, packet);
@@ -23760,18 +23882,21 @@ function inLink(err, packet, chan)
   chan.timeout(defaults.nat_timeout*2); // two NAT windows to be safe
 
   // add in this link
+  debug("LINKUP",packet.from.hashname);
   if(!packet.from.age) packet.from.age = Date.now();
   packet.from.linked = chan;
   packet.from.seed = packet.js.seed;
   if(self.buckets[packet.from.bucket].indexOf(packet.from) == -1) self.buckets[packet.from.bucket].push(packet.from);
+
+  // if it was a local seed, add them to list to always-query
+  if(packet.from.seed && packet.from.isLocal && self.locals.indexOf(packet.from) == -1) self.locals.push(packet.from);
 
   // send a response if this is a new incoming
   if(!chan.sentAt) packet.from.link();
 
   // look for any see and check to see if we should create a link
   if(Array.isArray(packet.js.see)) packet.js.see.forEach(function(address){
-    if(!address) return; // garbage
-    var hn = self.whois(address);
+    var hn = packet.from.sees(address);
     if(!hn || hn.linked) return;
     if(self.buckets[hn.bucket].length < defaults.link_k) hn.link();
   });
@@ -23793,9 +23918,12 @@ function inMaintenance(err, packet, chan)
   var self = packet.from.self;
   if(err)
   {
+    debug("LINKDOWN",packet.from.hashname,err);
     delete packet.from.linked;
     var index = self.buckets[packet.from.bucket].indexOf(packet.from);
     if(index > -1) self.buckets[packet.from.bucket].splice(index,1);
+    // if this channel was ever active, try to re-start it
+    if(chan.recvAt) packet.from.link();
     return;
   }
 
@@ -23809,94 +23937,48 @@ function inMaintenance(err, packet, chan)
 // update/respond to network state
 function inPath(err, packet, chan)
 {
-  var self = packet.from.self;
-
-  // check/try any alternate paths
-  if(Array.isArray(packet.js.paths)) packet.js.paths.forEach(function(path){
-    if(typeof path.type != "string") return; // invalid
-    // don't send to ones we know about
-    if(pathMatch(path, packet.from.paths)) return;
-    // a new one, experimentally send it a path
-    packet.from.raw("path",{js:{priority:1},to:path}, inPath);
-  });
-
-  // if path info from a seed, update our public ip/port
-  if(packet.from.isSeed && typeof packet.js.path == "object" && packet.js.path.type == "ipv4" && !isLocalIP(packet.js.path.ip))
-  {
-    debug("updating public ipv4",JSON.stringify(self.pub4),JSON.stringify(packet.js.path));
-    self.pathSet(self.pub4,true);
-    self.pub4 = {type:"ipv4", ip:packet.js.path.ip, port:parseInt(packet.js.path.port)};
-    self.pathSet(self.pub4);
-  }
-
-  // update any optional priority information
-  if(typeof packet.js.priority == "number"){
-    packet.sender.priority = packet.js.priority;
-    if(packet.from.to && packet.sender.priority > packet.from.to.priority) packet.from.to = packet.sender; // make the default!
-  }
-
-  if(err) return; // bye bye bye!
-
-  // need to respond, prioritize everything above relay
-  var priority = (packet.sender.type == "relay") ? 0 : 2;
-
-  // TODO lower bridge priorities
-
-  chan.send({js:{end:true, priority:priority, path:packet.sender.json}});
-}
-
-// handle any bridge requests, if allowed
-function inBridge(err, packet, chan)
-{
   if(err) return;
   var self = packet.from.self;
 
-  // ensure valid request
-  if(!isHEX(packet.js.to,32) || !isHEX(packet.js.from,32) || typeof packet.js.path != "object") return warn("invalid bridge request",JSON.stringify(packet.js),packet.from.hashname);
+  // add any/all suggested paths
+  if(Array.isArray(packet.js.paths)) packet.js.paths.forEach(hn.pathGet);
 
-  // must be allowed either globally or per hashname
-  if(!self.isBridge(packet.from)) return chan.send({js:{err:"not allowed"}});
-
-  // don't bridge for types we don't know
-  if(!self.networks[packet.js.path.type]) return chan.send({js:{err:"bad path"}});
-
-  // ignore fool line ids
-  if(self.lines[packet.js.to] || self.lines[packet.js.from]) return chan.send({js:{err:"bad line"}});
-
-  // set up the actual bridge paths
-  debug("BRIDGEUP",JSON.stringify(packet.js));
-  self.bridgeLine[packet.js.to] = packet.js.path;
-  self.bridgeLine[packet.js.from] = packet.sender;
-
-  chan.send({js:{end:true}});
+  // send back on all paths
+  packet.from.paths.forEach(function(path){
+    var js = {};
+    if(pathShareOrder.indexOf(path.type) >= 0) js.path = path.json;
+    chan.send({js:js, to:path});
+  });
 }
 
-// type lan, looking for a local seed
-function inLan(self, packet)
+// someone's looking for a local seed
+function inPing(self, packet)
 {
-  if(packet.js.lan == self.lanToken) return; // ignore ourselves
-  if(self.locals.length > 0) return; // someone locally is announcing already
-  if(self.lanSkip == self.lanToken) return; // often immediate duplicates, skip them
-  self.lanSkip = self.lanToken;
+  if(packet.js.trace == self.tracer) return; // ignore ourselves
+  if(self.locals.length > 1) return; // more than one locally is announcing already
+  if(self.lanSkip && self.lanSkip == packet.js.trace) return; // often immediate duplicates, skip them
+  debug("PING-PONG",packet.js,packet.sender);
+  self.lanSkip = packet.js.trace;
   // announce ourself as the seed back
-  var csid = partsMatch(self.parts,packet.js.from);
+  var csid = partsMatch(self.parts,packet.js);
   if(!csid) return;
-  packet.js.type = "seed";
-  packet.js.from = self.parts;
-  self.send({type:"lan"}, pencode(packet.js, getkey(self,csid)));
+  var js = {type:"pong",from:self.parts,trace:packet.js.trace};
+  self.send(packet.sender, pencode(js, getkey(self,csid)));
 }
 
 // answers from any LAN broadcast notice we sent
-function inLanSeed(self, packet)
+function inPong(self, packet)
 {
-  if(packet.js.lan != self.lanToken) return;
+  debug("PONG",JSON.stringify(packet.js),JSON.stringify(packet.sender));
+  if(packet.js.trace != self.tracer) return;
   if(self.locals.length >= 5) return warn("locals full");
   if(!packet.body || packet.body.length == 0) return;
   var to = self.whokey(packet.js.from,packet.body);
   if(!to) return warn("invalid lan request from",packet.js.from,packet.sender);
   to.local = true;
   debug("local seed open",to.hashname,JSON.stringify(packet.sender));
-  to.open(packet.sender);
+  self.send(packet.sender,to.open(),to);
+  to.link();
 }
 
 // utility functions
@@ -23949,9 +24031,6 @@ function pathMatch(path1, paths)
     if(!path2 || path2.type != path1.type) return;
     switch(path1.type)
     {
-    case "relay":
-      if(path1.relay == path2.relay) match = path2;
-      break;
     case "ipv4":
     case "ipv6":
       if(path1.ip == path2.ip && path1.port == path2.port) match = path2;
@@ -23959,12 +24038,9 @@ function pathMatch(path1, paths)
     case "http":
       if(path1.http == path2.http) match = path2;
       break;
-    case "local":
-      if(path1.id == path2.id) match = path2;
-      break;
-    case "webrtc":
-      match = path2; // always matches
-      break;
+    default:
+      // all other paths match based on id, local, webrtc, etc
+      if(path1.id === path2.id) match = path2;
     }
   });
   return match;
@@ -23974,9 +24050,8 @@ function pathMatch(path1, paths)
 function pathValid(path)
 {
   if(!path || path.gone) return false;
-  if(path.type == "relay" && !path.relay.ended) return true; // active relays are always valid
-  if(!path.lastIn) return false; // all else must receive to be valid
-  if(Date.now() - path.lastIn < defaults.nat_timeout) return true; // received anything recently is good
+  if(!path.recvAt) return false; // all else must receive to be valid
+  if(Date.now() - path.recvAt < defaults.nat_timeout) return true; // received anything recently is good
   return false;
 }
 
@@ -23993,6 +24068,7 @@ function isLocalPath(path)
 {
   if(!path || !path.type) return false;
   if(path.type == "bluetooth") return true;
+  if(path.type == "http" && typeof path.http == "string") return isLocalIP(require("url").parse(path.http).hostname);
   if(["ipv4","ipv6"].indexOf(path.type) >= 0) return isLocalIP(path.ip);
   // http?
   return false;
@@ -24089,12 +24165,15 @@ function loadkeys(self)
 {
   self.cs = {};
   self.keys = {};
+  self.parts = {};
   var err = false;
-  Object.keys(self.parts).forEach(function(csid){
+  Object.keys(self.id).forEach(function(csid){
+    if(csid.length != 2) return; // only csid keys
     self.cs[csid] = {};
     if(!self.CSets[csid]) err = csid+" not supported";
     err = err||self.CSets[csid].loadkey(self.cs[csid], self.id[csid], self.id[csid+"_secret"]);
     self.keys[csid] = self.id[csid];
+    self.parts[csid] = crypto.createHash("sha256").update(self.cs[csid].key).digest("hex");
   });
   return err;
 }
@@ -24108,7 +24187,7 @@ function loadkey(self, id, csid, key)
 function keysgen(cbDone,cbStep)
 {
   var self = this;
-  var ret = {parts:{}};
+  var ret = {};
   var todo = Object.keys(self.CSets);
   if(todo.length == 0) return cbDone("no sets supported");
   function pop(err)
@@ -24122,6 +24201,36 @@ function keysgen(cbDone,cbStep)
     self.CSets[csid].genkey(ret,pop,cbStep);
   }
   pop();
+}
+
+function ticketize(self, to, inner)
+{
+  if(!to.csid)
+  {
+    console.log("can't ticket w/ no key");
+    return false;
+  }
+  // clone the recipient CS stuff to gen new ephemeral line state
+  var tcs = {};
+  self.CSets[to.csid].loadkey(tcs,to.key);
+  return self.CSets[to.csid].openize(self, tcs, pencode(inner));
+}
+
+function deticketize(self, from, open)
+{
+  var ret;
+  var csid = open.head.charCodeAt().toString(16);
+  if(!self.CSets[csid] || csid != from.csid) ret = {err:"invalid CSID of "+csid};
+  else{
+    open.from = from;
+    try{ret = self.CSets[csid].deopenize(self, open);}catch(E){ret = {err:E};}    
+  }
+  if(ret.err || !ret.inner)
+  {
+    debug("deticketize failed",ret.err);
+    return false;
+  }
+  return ret.inner;
 }
 
 function openize(self, to)
@@ -24185,53 +24294,34 @@ exports.install = function(self, args)
 }
 },{"./seeds.json":56}],56:[function(require,module,exports){
 module.exports={
-  "89a4cbc6c27eb913c1bcaf06bac2d8b872c7cbef626b35b6d7eaf993590d37de": {
+  "ce9d2cfccf34345b1c1a1c5b6c72cb0cf625ec88cdc64b54921303b26a655949": {
     "admin":"http://github.com/quartzjer",
-    "paths": [{
-      "type": "ipv4",
-      "ip": "208.68.164.253",
-      "port": 42424
-    }, {
-      "type": "ipv6",
-      "ip": "2605:da00:5222:5269:230:48ff:fe35:6572",
-      "port": 42424
-    }, {
-      "type": "http",
-      "http": "http://208.68.164.253:42424"
-    }],
+    "paths": [
+      {
+        "type": "http",
+        "http": "http://208.68.164.253:42424"
+      },
+      {
+        "type": "ipv4",
+        "ip": "208.68.164.253",
+        "port": 42424
+      },
+      {
+        "type": "ipv6",
+        "ip": "2605:da00:5222:5269:230:48ff:fe35:6572",
+        "port": 42424
+      }
+    ],
     "parts": {
-      "2a": "beb07e8864786e1d3d70b0f537e96fb719ca2bbb4a2a3791ca45e215e2f67c9a",
-      "1a": "6c0da502755941a463454e9d478b16bbe4738e67"
+      "3a": "61b979399a285ec8a7159ea75f2953090612f26fe8ec80b4bdd3d746c7cba1f8",
+      "2a": "df99cf38a79eb730b7b5c583faa4bcb21ccb044b5548df27837e608a3da8c57a",
+      "1a": "4dd170c2523653dfaca8d2eca6c10ef4f703b3a95f4b77f57b81476d037e40b1"
     },
     "keys": {
-      "2a": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvJlhpi2pZZRrnf+bmnnRRAQHfzMzDwOV+s+JzamyL0X9wwJK8m2DHCFcpJQSLFIzv3v+e102+pZlIWAU6vvO5s6J60C+9UwQoKj9L3cxUL/XmEBjAnbwfs+61HGSjf8yS8Uon/0oDXxssJyJjnrzAJT7K5G+Nqf5N5IJiEfhYkfa9wkhWR4fU1ZiC3PZZoMrGurGxWAwIs4No2LlBkZXUtAC31jISWODBAahGcaRjPgHFVaDxQ+gEQFse0Aa0mWA7KCRiSbBC89Brx837AREWFa7t14UAi01BLcPSkbAIbIv1SmM+E3k7HdN6rXTjz2h7Na5DOCS4z1LgujXW460WQIDAQAB",
-      "1a": "hhzKwBDYADu6gQdDrP2AgQJmAE5iIbEqpPmLLZI9w72rLTCCqob9sw=="
-    },
-    "bridge": true
-  },
-  "f50f423ce7f94fe98cdd09268c7e57001aed300b23020840a84a881c76739471": {
-    "admin":"http://github.com/quartzjer",
-    "paths": [{
-      "type": "ipv4",
-      "ip": "208.126.199.195",
-      "port": 42424
-    }, {
-      "type": "ipv6",
-      "ip": "2001:470:c0a6:3::10",
-      "port": 42424
-    }, {
-      "type": "http",
-      "http": "http://208.126.199.195:42424"
-    }],
-    "parts": {
-      "2a": "8a5235d7cebb82d48a945e7c4b301efed40503d50ea1063464fe839b12278d93",
-      "1a": "b3c9341ff5d11670c1e1c918ad51631b1251448a"
-    },
-    "keys": {
-      "2a": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5mWOu3o0chHcpcxPYX43fD6DTWGkCj09QaWerHbTX1Gua5eW8VdPOM/Ki21WEY2xcBa55/s37hIRP1XZveFiWgIXft9g/L+1AsF56cO0ZGnHhrp5Wabrt+L5mVuWg2VcSAUQ/gdoSLmDRTdOc0ruzroIN4a4Wnfk6rwvFYq/LfTj2w5cBD3ziVts4XSicX9fnmWElrTKfGLWyC6W5ICbLZ0BmTt9CZLbdNmotuYqQkPXPJ0wccsWAuI8yjbmU2my+F+vakWbGFvMSCBlLlQLXMTnLbLtgnwgeujTHiJaB0Iycw5Q9FS0RiQ0QeFqUvmMX9BezKfayq2hHjcob58WbwIDAQAB",
-      "1a": "idT0VmmEmSdDF1eMrajIVHP0XZ/8Udgeas1Zxy0va5tD/KP393Ri3w=="
-    },
-    "bridge": true
+      "3a": "azQ23XvFzj3238HlcUNsnIntl5VJY7ABMSQZWB6SFgo=",
+      "2a": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6mvKCqjGj7PI2o+NXLRdgwDXx98271HN01ut873FrbJ4kkk3OmA//TpYTRKaE6xmeetXZnocci4q6X09TbfKpm2eNK0d898vWiYpGiRvQuy/5nUGM2bge3CPOS3wQZWv5ZSvpRkhGufekzCg5p6WpdUG0u9D382E9LzdLidFnzHvIdfp0eOc2EMcX7/JSj5w7BbwsXfZNaWpOkUAQEYfPi/qF/teo0y8cTh70JVufCRDx+2/FtA/c8+JpjtgeCZoFO3bYuKjCQiYmm4Zqcu1A6DYttCPkSKPXjirn9pdZFZBRH7IS7Mj5AJo2/L9nFYyLAE5xwMpBCE2rCY6wyzs7wIDAQAB",
+      "1a": "vRQvjqB6PM7QevqIW2YF3hY/AgDlhP7d0YDo1H6dZJAcYxbcsS/1Qw=="
+    }
   }
 }
 
@@ -24239,87 +24329,80 @@ module.exports={
 (function (Buffer){
 exports.install = function(self)
 {
+  self.sock = function(req)
+  {
+    if(self.isHashname(req)) req = {to:req};
+    if(typeof req != "object") return console.log("invalid args")&&false;
+    var to = self.whois(req.to);
+    if(!to) return console.log("invalid to hashname",req.to)&&false;
+    delete req.to;
+    var chan = to.start("sock",{bare:true,js:req});
+    return chan.wrap("stream");
+  }
+  self.onSock = function(cbSock)
+  {
+    self.rels["sock"] = function(err, packet, chan, callback)
+    {
+      if(err) return;
+      callback();
+      cbSock(chan.wrap("stream"));
+    }
+  }
+
   self.wraps["stream"] = function(chan)
   {
-    chan.duplex = new require("stream").Duplex();
+    var pipe = new require("stream").Duplex();
 
-    // allow for manually injected json
-    duplex.bufJS = {};
-    duplex.js = function(js){
-      Object.keys(js).forEach(function(key){ duplex.bufJS[key] = js[key]; });
-      setTimeout(doChunk, 10);
-    };
-  
-    // buffer writes and chunk them out
-    duplex.bufBody = new Buffer(0);
-    duplex.cbWrite;
+    pipe.on("finish",function(){
+      chan.send({js:{end:true}});
+    });
 
-    function doChunk(){
-      debug("CHUNKING", duplex.bufJS, duplex.bufBody.length)
-      if(duplex.bufBody.length === 0 && Object.keys(duplex.bufJS).length === 0) return;      
-      var bodyout;
-      var jsout = duplex.bufJS;
-      duplex.bufJS = {};
-      if(duplex.bufBody.length > 0)
+    pipe.on("error",function(err){
+      chan.fail({js:{err:err}});
+    });
+
+    pipe._write = function(data,enc,cbWrite)
+    {
+      if(chan.ended) return cbWrite("closed");
+      // chunk it
+      while(data.length)
       {
-        var len = 1024 - JSON.stringify(jsout).length; // max body size for a packet
-        if(duplex.bufBody.length < len) len = duplex.bufBody.length;
-        bodyout = duplex.bufBody.slice(0, len);
-        duplex.bufBody = duplex.bufBody.slice(len);
-      }
-      // send it!
-      chan.send({js:jsout, body:bodyout, done:function(){
-        // we might be backed up, let more in
-        if(duplex.cbWrite)
+        var chunk = data.slice(0,1000);
+        data = data.slice(1000);
+        var packet = {js:{},body:chunk};
+        // last packet gets continuation callback
+        if(!data.length)
         {
-          // am I being paranoid that a cbWrite() could have set another duplex.cbWrite?
-          var cb = duplex.cbWrite;
-          delete duplex.cbWrite;
-          cb();
+          packet.callback = cbWrite;
+          if(pipe.ended) packet.js.end = true;
         }
-      }});
-      // recurse nicely
-      setTimeout(doChunk, 10);
-    
-    };
-
-    duplex.end = function(){
-      duplex.bufJS.end = true;
-      if(stream.errMsg) duplex.bufJS.err = stream.errMsg;
-      doChunk();
-    }
-
-    duplex._write = function(buf, enc, cbWrite){
-      duplex.bufBody = Buffer.concat([duplex.bufBody, buf]);
-
-      // if there's 50 packets waiting to be confirmed, hold up here, otherwise buffer up
-      var cbPacket = doChunk;
-      if(stream.outq.length > 50)
-      {
-        duplex.cbWrite = cbWrite;
-      }else{
-        cbWrite();
+        chan.send(packet);
       }
-    
-      // try sending a chunk;
-      doChunk();
-    }  
-  
-    duplex._read = function(size){
-      // TODO handle backpressure
-      // perform duplex.push(body)'s if any waiting, if not .push('')
-      // handle return value logic properly
+    }
+
+    // convenience to end with optional data
+    pipe.end = function(data)
+    {
+      pipe.ended = true;
+      if(!data) data = new Buffer(0);
+      pipe.write(data);
+    }
+
+    // handle backpressure flag from the pipe.push()
+    var more = false;
+    pipe._read = function(size){
+      if(more) more();
+      more = false;
     };
 
-    stream.handler = function(self, packet, cbHandler) {
-      // TODO migrate to _read backpressure stuff above
-      debug("HANDLER", packet.js)
-      if(cbExtra) cbExtra(packet);
-      if(packet.body) duplex.push(packet.body);
-      if(packet.js.end) duplex.push(null);
-      cbHandler();
+    chan.callback = function(err, packet, chan, cbMore) {
+      // was a wait writing, let it through
+      if(packet.body) if(!pipe.push(packet.body)) more = cbMore;
+      if(err) pipe.push(null);
+      if(!more) cbMore();
     }
-    return duplex;  
+
+    return pipe;
   }
 }
 }).call(this,require("buffer").Buffer)
@@ -24885,6 +24968,39 @@ PeerConnectionHandler.prototype._setupChannel = function(evt) {
   }, 0);
   window.dbgChannel = this._channel;
 };
+
+
+},{}],63:[function(require,module,exports){
+module.exports={
+  "dca549c98b94197e79dfa2a7e4ad2e74fb144cda3f4710d4f40e2c75d975272e": {
+    "paths": [
+      {
+        "type": "http",
+        "http": "http://127.0.0.1:42424"
+      },
+      {
+        "type": "ipv4",
+        "ip": "127.0.0.1",
+        "port": 42424
+      },
+      {
+        "type": "ipv6",
+        "ip": "fe80::bae8:56ff:fe43:3de4",
+        "port": 42424
+      }
+    ],
+    "parts": {
+      "3a": "f0d2bfc8590a7e0016ce85dbf0f8f1883fb4f3dcc4701eab12ef83f972a2b87f",
+      "2a": "0cb4f6137a745f1af2d31707550c03b99083180f6e69ec37918c220ecfa2972f",
+      "1a": "b5a96d25802b3600ea99774138a650d5d1fa1f3cf3cb10ae8f1c58a527d85086"
+    },
+    "keys": {
+      "3a": "MC5dfSfrAVCSugX75JbgVWtvCbxPqwLDUkc9TcS/qxE=",
+      "2a": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqr12tXnpn707llkZfEcspB/D6KTcZM765+SnI5Z8JWkjc0Mrz9qZBB2YFLr2NmgCx0oLfSetmuHBNTT54sIAxQ/vxyykcMNGsSFg4WKhbsQXSrX4qChbhpIqMJkKa4mYZIb6qONA76G5/431u4+1sBRvfY0ewHChqGh0oThcaa50nT68f8ohIs1iUFm+SL8L9UL/oKN3Yg6drBYwpJi2Ex5Idyu4YQJwZ9sAQU49Pfs+LqhkHOascTmaa3+kTyTnp2iJ9wEuPg+AR3PJwxXnwYoWbH+Wr8gY6iLe0FQe8jXk6eLw9mqOhUcah8338MC83zSQcZriGVMq8qaQz0L9nwIDAQAB",
+      "1a": "z6yCAC7r5XIr6C4xdxeX7RlSmGu9Xe73L1gv8qecm4/UEZAKR5iCxA=="
+    }
+  }
+}
 
 
 },{}]},{},[32])

@@ -45,7 +45,7 @@ cmds.all = cmds.a = function()
   Object.keys(me.lines).forEach(function(line){
     var hn = me.lines[line];
     log(hn.hashname);
-    log("    paths",hn.paths.filter(function(p){return p.lastIn}).map(function(p){return p.type}).join(","));
+    log("    paths",hn.paths.filter(function(p){return p.recvAt}).map(function(p){return p.type}).join(","));
     log("    channels",Object.keys(hn.chans).map(function(cid){return hn.chans[cid].type}).join(","));
   });
 }
@@ -72,8 +72,9 @@ cmds.ping = function(arg)
 cmds.h = function(arg){
   var host = me.whois(arg[0]);
   if(!host) return log("invalid hashname",arg[0]);
+  if(host.relayChan) log("relaying: true");
   host.paths.forEach(function(path){
-    log("path",(hn.to==path)?"(primary)":"",Math.floor((Date.now()-path.lastIn)/1000),Math.floor((Date.now()-path.lastOut)/1000),JSON.stringify(path.json));
+    log("path",(hn.to==path)?"(primary)":"",Math.floor((Date.now()-path.recvAt)/1000),Math.floor((Date.now()-path.sentAt)/1000),JSON.stringify(path.json));
   });
   Object.keys(host.chans).forEach(function(c){
    if(!host.chans[c]) return; // dead
