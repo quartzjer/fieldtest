@@ -29,7 +29,6 @@ var cmds = exports.command = {};
 cmds.help = cmds["?"] = function(arg){
   log("'quit|exit'","exit the app");
   log("'whoami'","your info");
-  log("'seek hashname'","look for that hashname in the DHT");  
   log("'ping hashname'","try to connect to and get response from that hashname");
   log("'a|all'","show all connected hashnames");
   log("'h hashname'","show known details about a hashname");
@@ -50,21 +49,12 @@ cmds.all = cmds.a = function()
   });
 }
 
-cmds.seek = function(arg)
-{
-  var hn = me.whois(arg[0]);
-  if(!hn) return log("invalid hashname",arg[0]);
-  me.seek(hn, function(err){
-    if(err) return log("seek failed",hn.hashname,err);
-    log("seek",hn.hashname,JSON.stringify(hn.vias));
-  });
-}
 cmds.ping = function(arg)
 {
   var hn = me.whois(arg[0]);
   if(!hn) return log("invalid hashname",arg[0]);
   var start = Date.now();
-  hn.seek(me.hashname,function(err){
+  hn.link(function(err){
     if(err) return log("ping failed",hn.hashname,err);
     log("pong",hn.hashname,Date.now()-start);
   });

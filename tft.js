@@ -2,11 +2,12 @@
 
 var fs = require("fs");
 var path = require("path");
-var tele = require("telehash");
+var tele = require("./telehash");
 var commands = require("./commands.js");
 var argv = require("optimist")
-  .usage("Usage: $0 --id id.json --seeds seeds.json")
+  .usage("Usage: $0 --id id.json --router router.json")
   .default("id", "./id.json")
+  .default("router", "./router.json")
   .default("v", "./debug.log")
   .argv;
 
@@ -39,7 +40,7 @@ log("starting...");
 
 // load or generate our crypto id
 argv.id = path.join(process.cwd(),argv.id);
-if(argv.seeds) argv.seeds = path.join(process.cwd(),argv.seeds);
+if(argv.router) argv.router = path.join(process.cwd(),argv.router);
 tele.init(argv, init);
 
 var me;
@@ -54,6 +55,7 @@ function init(err, self)
   commands.init(self, log);
 
   rl.setPrompt(self.hashname.substr(0,6)+"> ");
+//  rl.setPrompt(require("base58-native").encode(new Buffer(self.hashname,"hex"))+"> ");
   rl.prompt();
 }
 

@@ -7,8 +7,16 @@
     "browserify":"browserify browser.js -o fieldtest.js"
   },
   "dependencies":{
-    "telehash":"0.2.x",
-    "optimist":"*",
+    "telehash-cs1a": "0.0.x",
+    "telehash-cs2a": "0.0.x",
+    "telehash-cs3a": "0.0.x",
+    "telehash-ipv4": "0.0.x",
+    "telehash-ipv6": "0.0.x",
+    "telehash-http": "0.0.x",
+    "telehash-telesocket": "0.0.x",
+    "telehash-thtp": "0.0.x",
+    "telehash-stream": "0.0.x",
+      "optimist":"*",
     "jquery-browserify":"*"
   }
 }
