@@ -565,11 +565,10 @@ function whois(hashname)
     if(hn.open()) hn.paths.forEach(function(path){
       self.send(path, hn.open(), hn);
     });
-
+    
+    // ask all routers
     self.routers.forEach(function(router){
-      if(router == to || router == packet.from) return; // lolz
-      if(!pathValid(router.to)) return;
-      router.peer(to.hashname,to.csid);
+      router.peer(hn.hashname,hn.csid);
     });
 
   }
@@ -636,12 +635,16 @@ function whois(hashname)
   // send a peer request and set up relay tunnel
   hn.peer = function(hashname, csid)
   {
-    if(!csid || !self.parts[csid]) return;
+    if(hn.hashname == hashname) return;
+    if(!hn.isRouter) return warn("can only peer to a router");
     var js = {"peer":hashname};
     js.paths = hn.pathsOut();
-    hn.raw("peer",{timeout:defaults.nat_timeout, js:js, body:getkey(self,csid)}, function(err, packet, chan){
-      if(!chan.relayTo) chan.relayTo = self.whois(hashname);
-      inRelay(chan, packet);
+    Object.keys(self.parts).forEach(function(cs){
+      if(csid && csid != cs) return;
+      hn.raw("peer",{timeout:defaults.nat_timeout, js:js, body:getkey(self,cs)}, function(err, packet, chan){
+        if(!chan.relayTo) chan.relayTo = self.whois(hashname);
+        inRelay(chan, packet);
+      });
     });
   }
 
@@ -705,21 +708,6 @@ function whois(hashname)
     });
   }
   
-  // create a ticket buffer to this hn w/ this packet
-  hn.ticket = function(packet)
-  {
-    if(self.pencode(packet).length > 1024) return false;
-    return ticketize(self, hn, packet);
-  }
-
-  // decode a ticket buffer from them
-  hn.ticketed = function(ticket)
-  {
-    packet = pdecode(ticket);
-    if(!packet) return false;
-    return deticketize(self, hn, packet);
-  }
-
   return hn;
 }
 
@@ -1089,7 +1077,6 @@ function inRelay(chan, packet)
     chan.migrating = true;
     self.routers.forEach(function(router){
       if(router == to || router == packet.from) return; // lolz
-      if(!pathValid(router.to)) return;
       router.peer(to.hashname,to.csid);
     });
   }
@@ -1118,11 +1105,13 @@ function inRelay(chan, packet)
 // someone's trying to connect to us, send an open to them
 function inConnect(err, packet, chan)
 {
+  if(err) return;
+
   // if this channel is acting as a relay
   if(chan.relayTo) return inRelay(chan, packet);
 
   var to = chan.relayTo = packet.from.self.whokey(packet.js.from,packet.body);
-  if(!chan.relayTo) return warn("invalid connect request from",packet.from.hashname,packet.js);
+  if(!chan.relayTo) return debug("invalid connect request from",packet.from.hashname,packet.js);
 
   // up the timeout to the nat default
   chan.timeout(defaults.nat_timeout);
@@ -1416,35 +1405,6 @@ function keysgen(cbDone,cbStep)
   pop();
 }
 
-function ticketize(self, to, inner)
-{
-  if(!to.csid)
-  {
-    console.log("can't ticket w/ no key");
-    return false;
-  }
-  // clone the recipient CS stuff to gen new ephemeral line state
-  var tcs = {};
-  self.CSets[to.csid].loadkey(tcs,to.key);
-  return self.CSets[to.csid].openize(self, tcs, pencode(inner));
-}
-
-function deticketize(self, from, open)
-{
-  var ret;
-  var csid = open.head.charCodeAt().toString(16);
-  if(!self.CSets[csid] || csid != from.csid) ret = {err:"invalid CSID of "+csid};
-  else{
-    open.from = from;
-    try{ret = self.CSets[csid].deopenize(self, open);}catch(E){ret = {err:E};}    
-  }
-  if(ret.err || !ret.inner)
-  {
-    debug("deticketize failed",ret.err);
-    return false;
-  }
-  return ret.inner;
-}
 
 function openize(self, to)
 {

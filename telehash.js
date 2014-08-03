@@ -31,18 +31,18 @@ exports.init = function(args, cbDone)
 
   function seed()
   {
+    if(args.router)
+    {
+      if(typeof args.router == "string" && fs.existsSync(args.router)) args.router = require(args.router);
+      if(typeof args.router == "object")
+      {
+        Object.keys(args.router).forEach(function(id){self.addRouter(args.router[id])});
+      }
+    }
+
     self.online(function(err){
       cbDone(err, self);      
     });
-  }
-
-  if(args.router)
-  {
-    if(typeof args.router == "string" && fs.existsSync(args.router)) args.router = require(args.router);
-    if(typeof args.router == "object")
-    {
-      Object.keys(args.router).forEach(function(id){self.addRouter(args.router[id])});
-    }
   }
 
   if(args.id)

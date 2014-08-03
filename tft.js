@@ -7,6 +7,7 @@ var commands = require("./commands.js");
 var argv = require("optimist")
   .usage("Usage: $0 --id id.json --router router.json")
   .default("id", "./id.json")
+  .default("router", "./router.json")
   .default("v", "./debug.log")
   .argv;
 
