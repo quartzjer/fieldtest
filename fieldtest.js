@@ -18492,13 +18492,11 @@ exports.install = function(self)
   var sockets = {};
   self.deliver("http", function(path, msg, to) {
     if(!sockets[path.http]){
-      console.log("new http path",path.http);
       sockets[path.http] = io.connect(path.http);
       sockets[path.http].on("packet", function(packet){
         self.receive((new Buffer(packet.data, "base64")).toString("binary"), path);
       });
     }
-    console.log("sending via http path",path.http,sockets[path.http].socket.sessionid);
     sockets[path.http].emit("packet", {data: msg.toString("base64")});
   });  
 }
@@ -22800,7 +22798,6 @@ function receive(msg, path)
     var err;
     if((err = self.CSets[from.csid].delineize(from, packet))) return debug("couldn't decrypt line",err,packet.sender);
     from.linedAt = from.openAt;
-    debug("LINEIN",JSON.stringify(packet.js));
     from.active();
     from.receive(packet);
     return;
@@ -22815,7 +22812,7 @@ function whokey(parts, key, keys)
   if(typeof parts != "object") return false;
   var csid = partsMatch(self.parts,parts);
   if(!csid) return false;
-  hn = self.whois(parts2hn(parts));
+  var hn = self.whois(parts2hn(parts));
   if(!hn) return false;
   if(keys) key = keys[csid]; // convenience for addSeed
   var err = loadkey(self,hn,csid,key);
@@ -22869,7 +22866,8 @@ function whois(hashname)
     var match = pathMatch(path, hn.paths);
     if(match) return match;
 
-    // preserve original
+    // clone and also preserve original (hackey)
+    path = JSON.parse(JSON.stringify(path));
     if(!path.json) path.json = JSON.parse(JSON.stringify(path));
 
     debug("adding new path",hn.paths.length,JSON.stringify(path.json));
@@ -22944,7 +22942,11 @@ function whois(hashname)
       if(pathShareOrder.indexOf(path.type) == -1) hn.bridging = true;
 
       // track overall if we trust them as local
-      if(isLocalPath(path)) hn.isLocal = true;
+      if(isLocalPath(path) && !hn.isLocal)
+      {
+        hn.isLocal = true;
+        hn.pathSync();
+      }
     }
 
     // always update default to newest
@@ -23003,7 +23005,7 @@ function whois(hashname)
     debug("alive failthrough",hn.sendSeek,Object.keys(hn.vias||{}));
 
     // always send to open all known paths to increase restart-resiliency
-    hn.paths.forEach(function(path){
+    if(hn.open()) hn.paths.forEach(function(path){
       self.send(path, hn.open(), hn);
     });
 
@@ -23046,6 +23048,7 @@ function whois(hashname)
 
     // find any existing channel
     var chan = hn.chans[packet.js.c];
+    debug("LINEIN",chan&&chan.type,JSON.stringify(packet.js),packet.body&&packet.body.length);
     if(chan === false) return; // drop packet for a closed channel
     if(chan) return chan.receive(packet);
 
@@ -23683,7 +23686,7 @@ function inRelay(chan, packet)
   var self = packet.from.self;
 
   // if the active relay is failing, try to create one via a bridge
-  if((packet.js.err || packet.js.warn) && !chan.migrating && to.relayChan == chan)
+  if((packet.js.err || packet.js.warn) && !chan.migrating && to.relayChan == chan && !to.to)
   {
     debug("relay failing, trying to migrate",to.hashname);
     chan.migrating = true;
@@ -23691,7 +23694,7 @@ function inRelay(chan, packet)
     var bridges = [];
     to.paths.forEach(function(path){
       if(!self.bridges[path.type]) return;
-      Objet.keys(self.bridges[path.type]).forEach(function(id){
+      Object.keys(self.bridges[path.type]).forEach(function(id){
         if(bridges.indexOf(id) == -1) bridges.push(id);
       });
     });
@@ -23720,8 +23723,8 @@ function inRelay(chan, packet)
   // most recent is always the current default back
   to.relayChan = chan;
   
-  // if the sender has created a bridge, use their path as the packet's origin!
-  var path = (packet.js.bridge) ? packet.sender : false;
+  // if the sender has created a bridge, clone their path as the packet's origin!
+  var path = (packet.js.bridge) ? JSON.parse(JSON.stringify(packet.sender.json)) : false;
   if(packet.body && packet.body.length) self.receive(packet.body, path);
 
   // always try a path sync to upgrade the relay
@@ -23941,7 +23944,7 @@ function inPath(err, packet, chan)
   var self = packet.from.self;
 
   // add any/all suggested paths
-  if(Array.isArray(packet.js.paths)) packet.js.paths.forEach(hn.pathGet);
+  if(Array.isArray(packet.js.paths)) packet.js.paths.forEach(function(path){packet.from.pathGet(path)});
 
   // send back on all paths
   packet.from.paths.forEach(function(path){
